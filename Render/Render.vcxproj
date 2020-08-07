@@ -35,7 +35,6 @@
     <ClInclude Include="Headers\render.h" />
     <ClInclude Include="Headers\renderPassOpaque.h" />
     <ClInclude Include="Headers\renderPassResolve.h" />
-    <ClInclude Include="Headers\renderPassShadow.h" />
     <ClInclude Include="Headers\renderTargetEnum.h" />
     <ClInclude Include="Headers\renderTargetManager.h" />
     <ClInclude Include="Headers\resourceSystem.h" />
@@ -50,7 +49,6 @@
     <ClCompile Include="..\Libs\imgui\imgui_demo.cpp" />
     <ClCompile Include="..\Libs\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\Libs\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="Headers\renderPassShadow.cpp" />
     <ClCompile Include="Sources\gameCameraSystem.cpp" />
     <ClCompile Include="Sources\geometry.cpp" />
     <ClCompile Include="Sources\gui.cpp" />
@@ -80,6 +78,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenVS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadowPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\shadowVS.fx">

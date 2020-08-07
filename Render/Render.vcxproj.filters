@@ -96,9 +96,6 @@
     <ClInclude Include="Headers\terrain.h">
       <Filter>RenderPasses</Filter>
     </ClInclude>
-    <ClInclude Include="Headers\renderPassShadow.h">
-      <Filter>RenderPasses</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Sources\geometry.cpp">
@@ -155,9 +152,6 @@
     <ClCompile Include="Sources\terrain.cpp">
       <Filter>RenderPasses</Filter>
     </ClCompile>
-    <ClCompile Include="Headers\renderPassShadow.cpp">
-      <Filter>RenderPasses</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Shaders\uiPS.fx">
@@ -179,6 +173,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenVS.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadowPS.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Shaders\shadowVS.fx">
