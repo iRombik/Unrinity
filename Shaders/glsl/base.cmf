@@ -1,0 +1,18 @@
+#define M_PI 3.1415926535897932384626433832795
+
+struct POINT_LIGHT {
+    vec3 pos;
+    float faidingDist;
+    vec3 color;
+    float ambient;
+};
+
+layout(binding = 0) uniform UniformBufferObject {
+    float curTime;
+    vec3 viewPos;
+    mat4 mWorldViewProj;
+} commonBuffer;
+
+layout(binding = 1) uniform LightBufferObject {
+    POINT_LIGHT light0;
+} lightBuffer;
