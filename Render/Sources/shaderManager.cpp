@@ -36,7 +36,7 @@ void SHADER_MANAGER::Init()
     InitShaderDecriptorLayoutTable();
 }
 
-VkDescriptorSetLayoutBinding CreateLayoutBinding(uint32_t bindingSlot, VkDescriptorType descriptorType, VkShaderStageFlagBits stageBitFlags, EFFECT_DATA::SAMPLERS samplerId = EFFECT_DATA::SAMPLERS::LAST)
+VkDescriptorSetLayoutBinding CreateLayoutBinding(uint32_t bindingSlot, VkDescriptorType descriptorType, VkShaderStageFlagBits stageBitFlags, EFFECT_DATA::SAMPLERS samplerId = EFFECT_DATA::SAMPLERS::SAMPLER_LAST)
 {
     VkDescriptorSetLayoutBinding layout;
     layout.binding = bindingSlot;
@@ -54,27 +54,30 @@ void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
     const size_t shrBaseId = EFFECT_DATA::SHR_BASE;
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS));
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS],  VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR_ANISO));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR_ANISO));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(18, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR_ANISO));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(19, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR_ANISO));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR_ANISO));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_MATERIAL], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(18, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(19, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
 
     const size_t shrFullscreenId = EFFECT_DATA::SHR_FULLSCREEN;
-    m_shaderDesc[shrFullscreenId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR));
+    m_shaderDesc[shrFullscreenId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     const size_t shrShadow = EFFECT_DATA::SHR_SHADOW;
     m_shaderDesc[shrShadow].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
 
     const size_t shrTerrain = EFFECT_DATA::SHR_TERRAIN;
     m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
+    m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_TERRAIN], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR));
+    m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     const size_t shrUiId = EFFECT_DATA::SHR_UI;
-    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT, EFFECT_DATA::SAMPLERS::REPEAT_LINEAR));
+    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     for (int i = 0; i < EFFECT_DATA::SHR_LAST; i++) {
         for (int s = 0; s < NUM_SAMPLERS; s++) {
@@ -97,8 +100,10 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
     std::vector<std::wstring> commandLineParams;
     //compile spir-v
     commandLineParams.push_back(L" -spirv");
-    //
-    commandLineParams.push_back(L"-fspv-reflect");
+#ifdef OUT_DEBUG_INFO
+    //for render doc pixel debugging
+    commandLineParams.push_back(L"-fspv-extension=SPV_GOOGLE_user_type");
+#endif
     //file
     const std::wstring path = absolutePath + shaderName + typeName + L".fx";
     commandLineParams.push_back(std::wstring(path.begin(), path.end()));
@@ -121,10 +126,7 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
         commandLineParams.push_back(L"-D");
         commandLineParams.push_back(std::wstring(define.begin(), define.end())); //uuuh!
     }
-    //for render doc
-    commandLineParams.push_back(L"-D");
-    commandLineParams.push_back(L"SPV_GOOGLE_user_type");
-
+    
     std::wstring commandLineString;
     for (const auto& command : commandLineParams) {
         commandLineString += command + L" ";

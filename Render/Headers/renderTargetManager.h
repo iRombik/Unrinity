@@ -10,15 +10,15 @@ public:
     void Term();
 
     void StartFrame();
-    void SetBackBufferTexture(const VULKAN_TEXTURE& backBufferTexture) { m_renderTargetsState[RT_BACK_BUFFER].texture = backBufferTexture; }
+    void SetCurSwapChainBufferId(uint8_t id) {
+        m_curSwapChainTexture = id; m_renderTargetsState[RT_BACK_BUFFER].texture = m_swapChainTextures[id];
+    }
+    void SetupSwapChainTexture(const VULKAN_TEXTURE& tex, uint8_t texId) { m_swapChainTextures[texId] = tex; }
 
-    uint32_t GetRenderTargetWidht(RENDER_TARGET rtIndex) const { return rtIndex == RT_BACK_BUFFER ? pDrvInterface->GetBackBufferWidth() : m_renderTargetsState[rtIndex].texture.width; }
-    uint32_t GetRenderTargetHeight(RENDER_TARGET rtIndex) const { return rtIndex == RT_BACK_BUFFER ? pDrvInterface->GetBackBufferHeight() : m_renderTargetsState[rtIndex].texture.height; }
-    VkFormat GetRenderTargetFormat(RENDER_TARGET rtIndex) const { return  rtIndex == RT_BACK_BUFFER ? pDrvInterface->GetBackBufferFormat() : m_renderTargetsState[rtIndex].texture.format; }
     VkImageLayout GetRenderTargetPrevLayout(RENDER_TARGET rtIndex) { return m_renderTargetsState[rtIndex].layout; }
     VkImageLayout GetRenderTargetFutureLayout(RENDER_TARGET rtIndex) { return m_renderTargetsState[rtIndex].futureLayout; }
 
-    const VULKAN_TEXTURE& GetRenderTarget(RENDER_TARGET rtIndex, VkAccessFlags accessFlags, VkImageLayout layout);
+    const VULKAN_TEXTURE* GetRenderTarget(RENDER_TARGET rtIndex, VkAccessFlags accessFlags, VkImageLayout layout);
     void ReturnRenderTarget(RENDER_TARGET rtIndex);
     void ReturnAllRenderTargets();
 private:
@@ -38,13 +38,12 @@ private:
     };
 
     //VkAccessFlags
-    static const int MAX_RENDER_TARGETS_NUM = 4;
-    std::bitset<MAX_RENDER_TARGETS_NUM> m_renderTargetsAvailabilityMask;
-    std::array<RENDER_TARGET_STATE, MAX_RENDER_TARGETS_NUM> m_renderTargetsState;
+    std::bitset<RT_LAST> m_renderTargetsAvailabilityMask;
+    std::array<RENDER_TARGET_STATE, RT_LAST> m_renderTargetsState;
     
     //back buffer params
-    uint32_t m_backBufferWight;
-    uint32_t m_backBufferHeight;
+    std::array <VULKAN_TEXTURE, NUM_FRAME_BUFFERS> m_swapChainTextures;
+    uint8_t m_curSwapChainTexture;
 };
 
 extern std::unique_ptr< RENDER_TARGET_MANAGER> pRenderTargetManager;

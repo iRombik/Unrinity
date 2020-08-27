@@ -1,7 +1,5 @@
-
-
 [[vk::push_constant]]
-struct uPushConstant {
+struct pushConstant {
     float2 scale;
     float2 translate;
 } pc;

@@ -14,8 +14,8 @@ struct MATERIAL_COMPONENT : ECS::COMPONENT<MATERIAL_COMPONENT>
 
 struct CUSTOM_MATERIAL_COMPONENT : ECS::COMPONENT<CUSTOM_MATERIAL_COMPONENT>
 {
-    float     customRoughness;
     glm::vec3 customMetalness;
+    float     customRoughness;
 };
 
 class MATERIAL_MANAGER

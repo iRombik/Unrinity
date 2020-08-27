@@ -1,25 +1,4 @@
-#define M_PI 3.1415926535897932384626433832795
-
-struct POINT_LIGHT {
-    float3 pos;
-    float  attenuationParam;
-    float3 color;
-    float  intensity;
-    float3 ambient;
-};
-
-[[vk::binding(0)]]
-cbuffer commonBuffer : register(b0) 
-{
-    float3   viewPos;
-    float    curTime;
-    float4x4 worldViewProj;
-};
-
-[[vk::binding(1)]]
-cbuffer lightBuffer : register (b1) {
-    POINT_LIGHT light0;
-};
+#include "common.fx"
 
 struct VERTEX_INPUT
 {

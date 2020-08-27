@@ -6,40 +6,7 @@
 
 #include "windowSystem.h"
 #include "Components/camera.h"
-#include "Events/camera.h"
 #include "Events/moving.h"
-
-class CAMERA_MATRIX_UPDATE_SYSTEM : public ECS::SYSTEM<CAMERA_MATRIX_UPDATE_SYSTEM> {
-public:
-    void Init() {
-        ECS::pEcsCoordinator->SubscrubeSystemToComponentType<CAMERA_TRANSFORM_COMPONENT>(this);
-        ECS::pEcsCoordinator->SubscrubeSystemToComponentType<CAMERA_COMPONENT>(this);
-
-        ECS::pEcsCoordinator->SubscrubeSystemToEventType<UPDATE_CAMERA_MATRIX_EVENT>(this);
-    }
-
-    void Update() {
-        if (!IsEventList<UPDATE_CAMERA_MATRIX_EVENT>()) {
-            return;
-        }
-        const auto& updateMatrixEvent = GetEventList<UPDATE_CAMERA_MATRIX_EVENT>();
-        const UPDATE_CAMERA_MATRIX_EVENT* cameraMatrixEvent = static_cast<const UPDATE_CAMERA_MATRIX_EVENT*>(updateMatrixEvent.first->second.get());
-        const CAMERA_TRANSFORM_COMPONENT* cameraPos = ECS::pEcsCoordinator->GetComponent<CAMERA_TRANSFORM_COMPONENT>(cameraMatrixEvent->entityId);
-        const glm::mat4 viewMatrix = glm::lookAt(cameraPos->position, cameraPos->position + cameraPos->dirLookAt, glm::vec3(0.f, 1.f, 0.f));
-
-        CAMERA_COMPONENT* camera = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(cameraMatrixEvent->entityId);
-        const glm::mat4 perspectiveMat = glm::perspective(camera->fov, camera->aspectRatio, 1.f, 100.f);
-        //https://matthewwellings.com/blog/the-new-vulkan-coordinate-system/
-        const glm::mat4 clip(
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        );
-        camera->viewProjMatrix = clip * perspectiveMat * viewMatrix;
-        ClearEventList();
-    }
-};
 
 class GAME_CAMERA_CONROL : public ECS::SYSTEM<GAME_CAMERA_CONROL> {
 public:
@@ -55,14 +22,15 @@ public:
         if(m_eventList.empty()) {
             return;
         }
-        const glm::vec3 upVector(0.f, 1.f, 0.f);
 
         for (auto it = m_entityList.begin(); it != m_entityList.end(); it++) {
             bool isCameraMoved = false;
-            CAMERA_TRANSFORM_COMPONENT* cameraPos = ECS::pEcsCoordinator->GetComponent<CAMERA_TRANSFORM_COMPONENT>(*it);
+            TRANSFORM_COMPONENT* cameraPos = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(*it);
+            ROTATE_COMPONENT* cameraRotation = ECS::pEcsCoordinator->GetComponent<ROTATE_COMPONENT>(*it);
 
             auto kse = GetEventList<KEY_STATE_EVENT>();
             for (auto event = kse.first; event != kse.second; event++) {
+                const glm::vec3 dirLookAt = cameraRotation->quaternion * glm::vec3(1.f, 0.f, 0.f);
                 const KEY_STATE_EVENT* keyboardEvent = static_cast<const KEY_STATE_EVENT*>(event->second.get());
                 const SHORT_KEY_STATE& keyInput = keyboardEvent->keyState;
                 if (keyInput.isButtonPressed.any()) {
@@ -70,14 +38,13 @@ public:
                 } else {
                     continue;
                 }
-                const glm::vec3 forwardVector = cameraPos->dirLookAt;
-                const glm::vec3 sidewayVector = glm::cross(upVector, forwardVector);
+                const glm::vec3 sidewayVector = glm::cross(UP_VECTOR, dirLookAt);
 
                 if (keyInput.isButtonPressed[0]) {
-                    cameraPos->position += 0.1f * forwardVector;
+                    cameraPos->position += 0.1f * dirLookAt;
                 }
                 if (keyInput.isButtonPressed[2]) {
-                    cameraPos->position -= 0.1f * forwardVector;
+                    cameraPos->position -= 0.1f * dirLookAt;
                 }
                 if (keyInput.isButtonPressed[1]) {
                     cameraPos->position -= 0.1f * sidewayVector;
@@ -97,17 +64,32 @@ public:
                     continue;
                 }
 
-                const float angleXZ = 0.5f * mousePosShift.x / 180.f * 3.14f;
-                const float angleY = 0.2f * mousePosShift.y / 180.f * 3.14f;
-                glm::vec3 result = glm::rotate(cameraPos->dirLookAt, angleXZ, upVector);
-                glm::vec3 normal = glm::cross(upVector, result);
-                result = glm::rotate(result, angleY, normal);
-                cameraPos->dirLookAt = glm::normalize(result);
+                const float angleXZ = glm::radians(0.5f * mousePosShift.x);
+                const float angleY = glm::radians(0.5f * mousePosShift.y);
+                static float roll = 0.f;
+                static float yaw = 0.f;
+                yaw += angleXZ;
+                roll += angleY;
+
+                glm::quat yawQuater = glm::angleAxis(yaw, UP_VECTOR);
+                glm::quat rollQuater = glm::angleAxis(-roll, glm::vec3(0.f, 0.f, 1.f));
+                cameraRotation->quaternion = yawQuater * rollQuater;
             }
 
 
-            if (isCameraMoved) {
-                ECS::pEcsCoordinator->SendEvent<UPDATE_CAMERA_MATRIX_EVENT>(UPDATE_CAMERA_MATRIX_EVENT(*it));
+            if (true) {
+                const glm::vec3 dirLookAt = normalize(cameraRotation->quaternion * glm::vec3(1.f, 0.f, 0.f));
+                CAMERA_COMPONENT* camera = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(*it);
+                camera->viewMatrix = glm::lookAt(cameraPos->position, cameraPos->position + dirLookAt, UP_VECTOR);
+                camera->projMatrix = glm::perspective(camera->fov, camera->aspectRatio, camera->nearPlane, camera->farPlane);
+                //https://matthewwellings.com/blog/the-new-vulkan-coordinate-system/
+                const glm::mat4 clip(
+                    1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, -1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f, 0.f,
+                    0.0f, 0.0f, 0.0f, 1.0f
+                );
+                camera->viewProjMatrix = clip * camera->projMatrix * camera->viewMatrix;
             }
         }
         ClearEventList();

@@ -6,6 +6,7 @@
 class RENDER_PASS_SHADOW : public ECS::SYSTEM<RENDER_PASS_SHADOW> {
 public:
     void Init();
+    void Update();
     void Render();
 private:
     void BeginRenderPass();

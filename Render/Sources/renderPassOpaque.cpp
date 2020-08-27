@@ -14,7 +14,7 @@
 
 void RENDER_PASS_OPAQUE::Init()
 {
-    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<RENDERED_COMPONENT>(this);
+    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<VISIBLE_COMPONENT>(this);
     ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
 }
 
@@ -44,18 +44,32 @@ void RENDER_PASS_OPAQUE::Render()
 
     EFFECT_DATA::CB_COMMON_DATA_STRUCT dynBufferData;
     dynBufferData.fTime = pDrvInterface->GetCurTime();
-    dynBufferData.vViewPos = ECS::pEcsCoordinator->GetComponent<CAMERA_TRANSFORM_COMPONENT>(gameCamera)->position;
+    dynBufferData.vViewPos = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(gameCamera)->position;
     dynBufferData.mViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewProjMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_COMMON_DATA, &dynBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_COMMON_DATA]);
 
     EFFECT_DATA::CB_LIGHTS_STRUCT lightBufferData;
-    lightBufferData.transform0 = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(lights[0]);
-    lightBufferData.light0 = *ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(lights[0]);
+    lightBufferData.dirLight = *ECS::pEcsCoordinator->GetComponent<DIRECTIONAL_LIGHT_COMPONENT>(directionalLight);
+    lightBufferData.pointLight0Transform = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
+    lightBufferData.pointLight0 = *ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(pointLights[0]);
+    lightBufferData.ambientColor = COMMON_AMBIENT;
+    //tmp
+    lightBufferData.dirLightViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(directionalLight)->viewProjMatrix;
+    lightBufferData.pointLight0ViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0])->viewProjMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_LIGHTS, &lightBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_LIGHTS]);
 
     for (auto& rendEntity : m_entityList) {
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
+
+        const CUSTOM_MATERIAL_COMPONENT* customMaterialParams = ECS::pEcsCoordinator->GetComponent<CUSTOM_MATERIAL_COMPONENT>(rendEntity);
+        if (customMaterialParams) {
+            EFFECT_DATA::CB_MATERIAL_STRUCT material;
+            material.metalness = customMaterialParams->customMetalness;
+            material.roughness = customMaterialParams->customRoughness;
+            pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_MATERIAL, &material, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_MATERIAL]);
+            pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_MATERIAL);
+        }
 
         glm::mat4x4 worldTransformMatrix(1.f);
         const ROTATE_COMPONENT* rotate = ECS::pEcsCoordinator->GetComponent<ROTATE_COMPONENT>(rendEntity);
@@ -65,9 +79,7 @@ void RENDER_PASS_OPAQUE::Render()
 
         const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(rendEntity);
         if (transform) {
-            worldTransformMatrix[3].x = transform->position.x;
-            worldTransformMatrix[3].y = transform->position.y;
-            worldTransformMatrix[3].z = transform->position.z;
+            worldTransformMatrix = glm::translate(worldTransformMatrix, transform->position);
         }
         pDrvInterface->FillPushConstantBuffer(&worldTransformMatrix, sizeof(worldTransformMatrix));
 

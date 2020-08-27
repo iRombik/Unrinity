@@ -16,6 +16,32 @@ void RENDER_PASS_SHADOW::Init()
     ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
 }
 
+void RENDER_PASS_SHADOW::Update()
+{
+    const glm::mat4 clip(
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, -1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    );
+
+    {
+        const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
+        CAMERA_COMPONENT* cameraComponent = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0]);
+        cameraComponent->viewMatrix = glm::lookAt(transform->position, glm::vec3(0.f, 0.f, 0.f), UP_VECTOR);
+        cameraComponent->projMatrix = glm::perspective(glm::radians(45.f), 1.f, 0.1f, 100.f);
+        cameraComponent->viewProjMatrix = clip * cameraComponent->projMatrix * cameraComponent->viewMatrix;
+    }
+
+    {
+        const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
+        CAMERA_COMPONENT* cameraComponent = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(directionalLight);
+        cameraComponent->viewMatrix = glm::lookAt(transform->position, glm::vec3(0.1f, 0.f, 0.1f), UP_VECTOR);
+        cameraComponent->projMatrix = glm::ortho(-100.f, 100.f, -100.f, 100.f, 0.1f, 100.f);
+        cameraComponent->viewProjMatrix = clip * cameraComponent->projMatrix * cameraComponent->viewMatrix;
+    }
+}
+
 void RENDER_PASS_SHADOW::Render()
 {
     BeginRenderPass();
@@ -27,15 +53,17 @@ void RENDER_PASS_SHADOW::Render()
     pDrvInterface->SetDepthComparitionOperation(true);
     pDrvInterface->SetStencilTestState(false);
 
+    EFFECT_DATA::CB_LIGHTS_STRUCT lightBufferData;
+//     lightBufferData.dirLightTransform = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
+//     lightBufferData.pointLight0Transform = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
 
-    EFFECT_DATA::CB_COMMON_DATA_STRUCT dynBufferData;
-    dynBufferData.fTime = pDrvInterface->GetCurTime();
-    dynBufferData.vViewPos = ECS::pEcsCoordinator->GetComponent<CAMERA_TRANSFORM_COMPONENT>(gameCamera)->position;
-    dynBufferData.mViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewProjMatrix;
-    pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_COMMON_DATA, &dynBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_COMMON_DATA]);
+    lightBufferData.dirLightViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(directionalLight)->viewProjMatrix;
+    lightBufferData.pointLight0ViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0])->viewProjMatrix;
+
+    pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_LIGHTS, &lightBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_LIGHTS]);
 
     for (auto& rendEntity : m_entityList) {
-        pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
+        pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
 
         glm::mat4x4 worldTransformMatrix(1.f);
         const ROTATE_COMPONENT* rotate = ECS::pEcsCoordinator->GetComponent<ROTATE_COMPONENT>(rendEntity);
@@ -45,9 +73,7 @@ void RENDER_PASS_SHADOW::Render()
 
         const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(rendEntity);
         if (transform) {
-            worldTransformMatrix[3].x = transform->position.x;
-            worldTransformMatrix[3].y = transform->position.y;
-            worldTransformMatrix[3].z = transform->position.z;
+            worldTransformMatrix = glm::translate(worldTransformMatrix, transform->position);
         }
         pDrvInterface->FillPushConstantBuffer(&worldTransformMatrix, sizeof(worldTransformMatrix));
 

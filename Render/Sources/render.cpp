@@ -18,12 +18,14 @@
 #include "Components/transformation.h"
 #include "Events/debug.h"
 
+#include "visibilitySystem.h"
 #include "renderPassOpaque.h"
 #include "renderPassResolve.h"
 #include "renderPassShadow.h"
 
-ECS::ENTITY_TYPE gameCamera;
-std::vector<ECS::ENTITY_TYPE> lights;
+ECS::ENTITY_TYPE gameCamera = ECS::INVALID_ENTITY_ID;
+std::vector<ECS::ENTITY_TYPE> pointLights;
+ECS::ENTITY_TYPE directionalLight = ECS::INVALID_ENTITY_ID;
 
 bool RENDER_SYSTEM::Init()
 {
@@ -46,11 +48,18 @@ bool RENDER_SYSTEM::Init()
 
     pRenderTargetManager->Init(pDrvInterface->GetBackBufferWidth(), pDrvInterface->GetBackBufferHeight());
 
+    ECS::pEcsCoordinator->CreateSystem<VISIBILITY_SYSTEM>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_OPAQUE>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_RESOLVE>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SHADOW>()->Init();
 
     return true;
+}
+
+void RENDER_SYSTEM::Update()
+{
+    ECS::pEcsCoordinator->GetSystem <VISIBILITY_SYSTEM>()->Update();
+    ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Update();
 }
 
 void RENDER_SYSTEM::Render()

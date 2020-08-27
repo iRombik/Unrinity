@@ -39,8 +39,8 @@ bool VULKAN_DRIVER_INTERFACE::Init()
     SAFE_FUNC_WRAPPER(InitLogicalDevice, "Logical device init error!");
     SAFE_FUNC_WRAPPER(InitSwapChain, "Initialization of swap chain failed!");
     SAFE_FUNC_WRAPPER(InitSwapChainImages, "Initialization of swap chain images failed!");
-    SAFE_FUNC_WRAPPER(InitDefaultRenderPass, "Default render pass creation failed!");
-    SAFE_FUNC_WRAPPER(InitSwapChainFrameBuffers, "Initialization of swap chain frame buffers failed!");
+    //SAFE_FUNC_WRAPPER(InitDefaultRenderPass, "Default render pass creation failed!");
+    //SAFE_FUNC_WRAPPER(InitSwapChainFrameBuffers, "Initialization of swap chain frame buffers failed!");
     SAFE_FUNC_WRAPPER(InitCommandBuffers, "Init command pool failed!");
     SAFE_FUNC_WRAPPER(InitSemaphoresAndFences, "Init semapores failed!");
     SAFE_FUNC_WRAPPER(InitConstBuffers, "Const buffers allocation failed!");
@@ -83,9 +83,6 @@ void VULKAN_DRIVER_INTERFACE::Term()
     }
     for (auto& pso : m_pipelineStateCache) {
         vkDestroyPipeline(m_device, pso.second, nullptr);
-    }
-    for (int i = 0; i < NUM_FRAME_BUFFERS; i++) {
-        DestroyTexture(m_swapChain.swapChainTexture[i]);
     }
     vkDestroySwapchainKHR(m_device, m_swapChain.swapChain, nullptr);
     vkDestroyDevice(m_device, nullptr);
@@ -195,7 +192,7 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateAndFillBuffer(const VkBufferCreateInfo& 
     return result;
 }
 
-size_t VULKAN_DRIVER_INTERFACE::GetDeviceCoherentSize (size_t bufferSize) const
+size_t VULKAN_DRIVER_INTERFACE::GetDeviceCoherentValue (size_t bufferSize) const
 {
     return(bufferSize + m_deviceProperties.limits.nonCoherentAtomSize - 1) & ~(m_deviceProperties.limits.nonCoherentAtomSize - 1);
 }
@@ -203,7 +200,7 @@ size_t VULKAN_DRIVER_INTERFACE::GetDeviceCoherentSize (size_t bufferSize) const
 VkResult VULKAN_DRIVER_INTERFACE::FillBuffer (const uint8_t* pSourceData,  uint64_t rawDataSize, uint64_t offset, VULKAN_BUFFER& buffer)
 {
     void* data;
-    size_t mappedSize = GetDeviceCoherentSize(rawDataSize);
+    size_t mappedSize = GetDeviceCoherentValue(rawDataSize);
     VkResult result = vkMapMemory(m_device, buffer.bufferMemory, offset, mappedSize, 0, &data);
     if (result != VK_SUCCESS) {
         return result;
@@ -244,6 +241,22 @@ void VULKAN_DRIVER_INTERFACE::DestroyBuffer(VULKAN_BUFFER& buffer)
     vkFreeMemory(m_device, buffer.bufferMemory, nullptr);
 }
 
+VkImageAspectFlags CastFormatToAspect(VkFormat format) {
+    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    if (format == VK_FORMAT_D16_UNORM_S8_UINT ||
+        format == VK_FORMAT_D24_UNORM_S8_UINT ||
+        format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+    {
+        aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    if(format == VK_FORMAT_D16_UNORM ||
+       format == VK_FORMAT_D32_SFLOAT) 
+    {
+        aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    }
+    return aspect;
+}
+
 void VULKAN_DRIVER_INTERFACE::ChangeTextureLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VULKAN_TEXTURE& texture)
 {
     VkImageMemoryBarrier barrier{};
@@ -253,7 +266,7 @@ void VULKAN_DRIVER_INTERFACE::ChangeTextureLayout(VkImageLayout oldLayout, VkIma
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = texture.image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = CastFormatToAspect(texture.format);
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = texture.mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -262,37 +275,64 @@ void VULKAN_DRIVER_INTERFACE::ChangeTextureLayout(VkImageLayout oldLayout, VkIma
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
 
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) 
+    {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
+    {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) 
+    {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    {
         barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 
         sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) 
+    {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; //yep, store of depth on this stage
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
+    {
         barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -300,12 +340,6 @@ void VULKAN_DRIVER_INTERFACE::ChangeTextureLayout(VkImageLayout oldLayout, VkIma
         destinationStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
     } else {
         ERROR_MSG("unsupported layout transition!");
-    }
-
-    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    } else {
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
     vkCmdPipelineBarrier(
@@ -423,7 +457,7 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateRenderTarget(VULKAN_TEXTURE_CREATE_DATA&
     viewInfo.image = createdTexture.image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = createData.format;;
-    viewInfo.subresourceRange.aspectMask = createData.usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT ?  VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.aspectMask = CastFormatToAspect(createData.format);
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -524,19 +558,20 @@ void VULKAN_DRIVER_INTERFACE::FreeMemory (VkDeviceMemory& allocatedMemory)
 
 VkResult VULKAN_DRIVER_INTERFACE::CreateDecriptorPools()
 {
+    //todo : TOO MUCH DESCRIPTORS!
     std::array<VkDescriptorPoolSize, 3> poolSizeDesc;
     poolSizeDesc[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizeDesc[0].descriptorCount = static_cast<uint32_t>(256);
+    poolSizeDesc[0].descriptorCount = static_cast<uint32_t>(2048);
     poolSizeDesc[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    poolSizeDesc[1].descriptorCount = static_cast<uint32_t>(256);
+    poolSizeDesc[1].descriptorCount = static_cast<uint32_t>(2048);
     poolSizeDesc[2].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-    poolSizeDesc[2].descriptorCount = static_cast<uint32_t>(128);
+    poolSizeDesc[2].descriptorCount = static_cast<uint32_t>(4096);
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizeDesc.size());
     poolInfo.pPoolSizes = poolSizeDesc.data();
-    poolInfo.maxSets = 256;
+    poolInfo.maxSets = 4096;
     poolInfo.flags = 0;
 
     for (int i = 0; i < m_descriptorPool.size(); i++) {
@@ -591,19 +626,33 @@ VkResult VULKAN_DRIVER_INTERFACE::CreatePiplineLayout(const PIPLINE_LAYOUT_STATE
 
 VkResult VULKAN_DRIVER_INTERFACE::CreateRenderPass(const RENDER_PASS_STATE& renderPassState)
 {
-    VkAttachmentReference colorAttachmentRef = {};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef = {};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = renderPassState.useRT ? &colorAttachmentRef : VK_NULL_HANDLE;
-    subpass.pDepthStencilAttachment = renderPassState.useDB ? &depthAttachmentRef : VK_NULL_HANDLE;
+
+    std::vector< VkAttachmentDescription> attachmentsDesc;
+
+    uint32_t attachmentId = 0;
+    VkAttachmentReference colorAttachmentRef = {};
+    VkAttachmentReference depthAttachmentRef = {};
+
+    if (renderPassState.useRT) {
+        colorAttachmentRef.attachment = attachmentId++;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+
+        attachmentsDesc.push_back(renderPassState.rtAttachDesc);
+    }
+
+    if (renderPassState.useDB) {
+        depthAttachmentRef.attachment = attachmentId++;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+        attachmentsDesc.push_back(renderPassState.dbAttachDesc);
+    }
 
     VkSubpassDependency dependency = {};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -613,13 +662,7 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateRenderPass(const RENDER_PASS_STATE& rend
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    std::vector< VkAttachmentDescription> attachmentsDesc;
-    if (renderPassState.useRT) {
-        attachmentsDesc.push_back(renderPassState.rtAttachDesc);
-    }
-    if (renderPassState.useDB){
-        attachmentsDesc.push_back(renderPassState.dbAttachDesc);
-    }
+
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentsDesc.size());
@@ -673,7 +716,7 @@ void VULKAN_DRIVER_INTERFACE::StartFrame(double frameStartTime)
     VkDescriptorPoolResetFlags resetFlags = 0;
     vkResetDescriptorPool(m_device, m_descriptorPool[m_curContextId], resetFlags);
     pRenderTargetManager->StartFrame();
-    pRenderTargetManager->SetBackBufferTexture(m_swapChain.swapChainTexture[m_swapChain.curSwapChainImageId]);
+    pRenderTargetManager->SetCurSwapChainBufferId(m_swapChain.curSwapChainImageId);
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -743,18 +786,19 @@ void VULKAN_DRIVER_INTERFACE::SubmitCommandBuffer()
 VkResult VULKAN_DRIVER_INTERFACE::CreateFrameBuffer(const FRAME_BUFFER_STATE& frameBufferState)
 {
     std::vector<VkImageView> attachments;
-    if (frameBufferState.rtView) {
-        attachments.push_back(frameBufferState.rtView);
+
+    if (frameBufferState.pRenderTargetTexture) {
+        attachments.push_back(frameBufferState.pRenderTargetTexture->imageView);
     }
-    if (frameBufferState.dbView) {
-        attachments.push_back(frameBufferState.dbView);
+    if (frameBufferState.pDepthTexture) {
+        attachments.push_back(frameBufferState.pDepthTexture->imageView);
     }
 
     VkFramebufferCreateInfo frameBufferInfo = {};
     frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferInfo.flags = 0;
-    frameBufferInfo.height = pRenderTargetManager->GetRenderTargetHeight(frameBufferState.rtIndex);
-    frameBufferInfo.width = pRenderTargetManager->GetRenderTargetWidht(frameBufferState.rtIndex);
+    frameBufferInfo.height = frameBufferState.GetFrameBufferHeight();
+    frameBufferInfo.width = frameBufferState.GetFrameBufferWigth();
     frameBufferInfo.layers = 1;
     frameBufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     frameBufferInfo.pAttachments = attachments.data();
@@ -801,6 +845,8 @@ void VULKAN_DRIVER_INTERFACE::InvalidateDeviceState()
     m_curPiplineState.depthStateS.depthWriteEnable = false;
     m_curPiplineState.depthStateS.depthCompareOp = false;
     m_curPiplineState.depthStateS.stencilTestEnable = false;
+    m_curPiplineState.viewportHeight = 0;
+    m_curPiplineState.viewportWidth = 0;
 
     m_curTextureState.fill(VK_NULL_HANDLE);
     m_curVertexBuffer = VULKAN_BUFFER();
@@ -839,7 +885,13 @@ void VULKAN_DRIVER_INTERFACE::FillPushConstantBuffer(const void* pData, uint32_t
 
 void VULKAN_DRIVER_INTERFACE::FillConstBuffer(uint32_t bufferId, const void* pData, uint32_t dataSize)
 {
-    FillBuffer(static_cast<const uint8_t*>(pData), dataSize, 0, m_constBuffers[bufferId]);
+    ASSERT(EFFECT_DATA::CONST_BUFFERS_SIZE[bufferId] == dataSize);
+    if (m_constBufferOffsets[bufferId] + EFFECT_DATA::CONST_BUFFERS_SIZE[bufferId] > m_constBuffers[bufferId].realBufferSize) {
+        m_constBufferOffsets[bufferId] = 0;
+    }
+    FillBuffer(static_cast<const uint8_t*>(pData), dataSize, m_constBufferOffsets[bufferId], m_constBuffers[bufferId]);
+    m_constBufferLastRecordOffset[bufferId] = m_constBufferOffsets[bufferId];
+    m_constBufferOffsets[bufferId] += GetDeviceCoherentValue(EFFECT_DATA::CONST_BUFFERS_SIZE[bufferId]);
 }
 
 void VULKAN_DRIVER_INTERFACE::SetConstBuffer(uint32_t bufferId)
@@ -847,7 +899,7 @@ void VULKAN_DRIVER_INTERFACE::SetConstBuffer(uint32_t bufferId)
     std::pair<uint8_t, VkDescriptorBufferInfo> bufferInfo;
     bufferInfo.first         = EFFECT_DATA::CONST_BUFFERS_SLOT[bufferId];
     bufferInfo.second.buffer = m_constBuffers[bufferId].buffer;
-    bufferInfo.second.offset = 0;
+    bufferInfo.second.offset = m_constBufferLastRecordOffset[bufferId];
     bufferInfo.second.range  = EFFECT_DATA::CONST_BUFFERS_SIZE[bufferId];
 
     m_updateDescriptorSet = true;
@@ -896,10 +948,10 @@ void VULKAN_DRIVER_INTERFACE::SetVertexFormat(uint8_t vertexFormat)
 void VULKAN_DRIVER_INTERFACE::SetRenderTarget(RENDER_TARGET rtIndex, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp)
 {
     //todo: remove VK_ACCESS_COLOR_ATTACHMENT_READ_BIT when we are drawing without blending
-    const VULKAN_TEXTURE& rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    const VULKAN_TEXTURE* rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
     m_curRenderPassState.useRT = true;
-    m_curRenderPassState.rtAttachDesc.format = rtTex.format;
+    m_curRenderPassState.rtAttachDesc.format = rtTex->format;
     m_curRenderPassState.rtAttachDesc.loadOp = loadOp;
     m_curRenderPassState.rtAttachDesc.storeOp = storeOp;
 
@@ -910,7 +962,7 @@ void VULKAN_DRIVER_INTERFACE::SetRenderTarget(RENDER_TARGET rtIndex, VkAttachmen
     m_curRenderPassState.rtAttachDesc.initialLayout = pRenderTargetManager->GetRenderTargetPrevLayout(rtIndex);
     m_curRenderPassState.rtAttachDesc.finalLayout = pRenderTargetManager->GetRenderTargetFutureLayout(rtIndex);
 
-    m_curFrameBufferState.rtView = rtTex.imageView;
+    m_curFrameBufferState.pRenderTargetTexture = rtTex;
     m_curFrameBufferState.rtIndex = rtIndex;
 
 }
@@ -923,25 +975,25 @@ void VULKAN_DRIVER_INTERFACE::RemoveRenderTarget()
     m_curRenderPassState.rtAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
 
     m_curFrameBufferState.rtIndex = RT_LAST;
-    m_curFrameBufferState.rtView = VK_NULL_HANDLE;
+    m_curFrameBufferState.pRenderTargetTexture = VK_NULL_HANDLE;
 }
 
 void VULKAN_DRIVER_INTERFACE::SetRenderTargetAsShaderResource(RENDER_TARGET rtIndex, uint32_t slot)
 {
-    const VULKAN_TEXTURE& rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    SetTexture(&rtTex, slot);
+    const VULKAN_TEXTURE* rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    SetTexture(rtTex, slot);
 }
 
 void VULKAN_DRIVER_INTERFACE::SetDepthBuffer(RENDER_TARGET rtIndex, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp)
 {
-    const VULKAN_TEXTURE& dbTex = pRenderTargetManager->GetRenderTarget(
+    const VULKAN_TEXTURE* dbTex = pRenderTargetManager->GetRenderTarget(
         rtIndex, 
         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     );
 
     m_curRenderPassState.useDB = true;
-    m_curRenderPassState.dbAttachDesc.format = dbTex.format;
+    m_curRenderPassState.dbAttachDesc.format = dbTex->format;
     m_curRenderPassState.dbAttachDesc.loadOp = loadOp;
     m_curRenderPassState.dbAttachDesc.storeOp = storeOp;
 
@@ -952,8 +1004,7 @@ void VULKAN_DRIVER_INTERFACE::SetDepthBuffer(RENDER_TARGET rtIndex, VkAttachment
     m_curRenderPassState.dbAttachDesc.initialLayout = pRenderTargetManager->GetRenderTargetPrevLayout(rtIndex);;
     m_curRenderPassState.dbAttachDesc.finalLayout = pRenderTargetManager->GetRenderTargetFutureLayout(rtIndex);;
 
-
-    m_curFrameBufferState.dbView = dbTex.imageView;
+    m_curFrameBufferState.pDepthTexture = dbTex;
     m_curFrameBufferState.dbIndex = rtIndex;
 }
 
@@ -964,7 +1015,7 @@ void VULKAN_DRIVER_INTERFACE::RemoveDepthBuffer()
     m_curRenderPassState.dbAttachDesc.loadOp = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
     m_curRenderPassState.dbAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
 
-    m_curFrameBufferState.dbView = VK_NULL_HANDLE;
+    m_curFrameBufferState.pDepthTexture = VK_NULL_HANDLE;
     m_curFrameBufferState.dbIndex = RT_LAST;
 }
 
@@ -1044,19 +1095,31 @@ void VULKAN_DRIVER_INTERFACE::BeginRenderPass()
     }
     m_curFrameBuffer = frameBuffer->second;
 
+    if (m_curPiplineState.viewportHeight != m_curFrameBufferState.GetFrameBufferHeight()
+        || m_curPiplineState.viewportWidth != m_curFrameBufferState.GetFrameBufferWigth()) 
+    {
+        m_curPiplineState.viewportHeight = m_curFrameBufferState.GetFrameBufferHeight();
+        m_curPiplineState.viewportWidth = m_curFrameBufferState.GetFrameBufferWigth();
+        m_updatePiplineState = true;
+    }
 
+    uint32_t numClearValues = 0;
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-    clearValues[1].depthStencil = { 1.0f, 0 };
+    if (m_curRenderPassState.useRT) {
+        clearValues[numClearValues++].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    }
+    if (m_curRenderPassState.useDB) {
+        clearValues[numClearValues++].depthStencil = { 1.0f, 0 };
+    }
 
     VkRenderPassBeginInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = m_curRenderPass;
     renderPassInfo.framebuffer = m_curFrameBuffer;
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent.height = pRenderTargetManager->GetRenderTargetHeight(m_curFrameBufferState.rtIndex);
-    renderPassInfo.renderArea.extent.width = pRenderTargetManager->GetRenderTargetWidht(m_curFrameBufferState.rtIndex);
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.renderArea.extent.height = m_curFrameBufferState.GetFrameBufferHeight();
+    renderPassInfo.renderArea.extent.width = m_curFrameBufferState.GetFrameBufferWigth();
+    renderPassInfo.clearValueCount = numClearValues;
     renderPassInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(m_curCommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
@@ -1224,14 +1287,14 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)m_swapChain.createParams.extent.width;
-    viewport.height = (float)m_swapChain.createParams.extent.height;
+    viewport.width = (float)piplineState.viewportWidth;
+    viewport.height = (float)piplineState.viewportHeight;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = m_swapChain.createParams.extent;
+    scissor.extent = { piplineState.viewportWidth , piplineState.viewportHeight };
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1242,7 +1305,7 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
 
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_TRUE;
+    rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
@@ -1324,27 +1387,32 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateFlags.size());
     dynamicState.pDynamicStates = dynamicStateFlags.data();
 
-    VkPipelineShaderStageCreateInfo shaderStages[2] = {};
+    std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {};
+    uint32_t numStages = 0;
     const VkShaderModule& vertexShader = pShaderManager->GetVertexShader(piplineState.shaderId);
-    VkPipelineShaderStageCreateInfo& vertexShaderStageInfo = shaderStages[0];
-    vertexShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertexShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertexShaderStageInfo.module = vertexShader;
-    vertexShaderStageInfo.flags = 0;
-    vertexShaderStageInfo.pName = "main";
+    if (vertexShader) {
+        VkPipelineShaderStageCreateInfo& vertexShaderStageInfo = shaderStages[numStages++];
+        vertexShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertexShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertexShaderStageInfo.module = vertexShader;
+        vertexShaderStageInfo.flags = 0;
+        vertexShaderStageInfo.pName = "main";
+    }
 
     const VkShaderModule& pixelShader = pShaderManager->GetPixelShader(piplineState.shaderId);
-    VkPipelineShaderStageCreateInfo& pixelShaderStageInfo = shaderStages[1];
-    pixelShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    pixelShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    pixelShaderStageInfo.module = pixelShader;
-    pixelShaderStageInfo.flags = 0;
-    pixelShaderStageInfo.pName = "main";
+    if (pixelShader) {
+        VkPipelineShaderStageCreateInfo& pixelShaderStageInfo = shaderStages[numStages++];
+        pixelShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        pixelShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        pixelShaderStageInfo.module = pixelShader;
+        pixelShaderStageInfo.flags = 0;
+        pixelShaderStageInfo.pName = "main";
+    }
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.stageCount = numStages;
+    pipelineInfo.pStages = shaderStages.data();
     pipelineInfo.pVertexInputState = &vertexInputDescriptor;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -1603,36 +1671,38 @@ VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainImages()
     createInfo.subresourceRange.levelCount = 1;
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount = 1;
+
+    VULKAN_TEXTURE swapChainTexture;
+    swapChainTexture.format = m_swapChain.createParams.surfaceFormat.format;
+    swapChainTexture.height = m_swapChain.createParams.extent.height;
+    swapChainTexture.width = m_swapChain.createParams.extent.width;
+    swapChainTexture.mipLevels = 1;
     for (uint32_t i = 0; i < imageCount; i++) {
         createInfo.image = swapChainImages[i];
-
-        m_swapChain.swapChainTexture[i].format = m_swapChain.createParams.surfaceFormat.format;
-        m_swapChain.swapChainTexture[i].height = m_swapChain.createParams.extent.height;
-        m_swapChain.swapChainTexture[i].width = m_swapChain.createParams.extent.width;
-        m_swapChain.swapChainTexture[i].mipLevels = 1;
-        m_swapChain.swapChainTexture[i].image = swapChainImages[i];
-        result = CreateImageView(createInfo, m_swapChain.swapChainTexture[i]);
+        swapChainTexture.image = swapChainImages[i];
+        result = CreateImageView(createInfo, swapChainTexture);
         if (result != VK_SUCCESS) {
             return result;
         }
+        pRenderTargetManager->SetupSwapChainTexture(swapChainTexture, i);
     }
     return result;
 }
 
-VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainFrameBuffers()
-{
-    FRAME_BUFFER_STATE swapChainFrameBufferState;
-    swapChainFrameBufferState.rtIndex = RT_BACK_BUFFER;
-    swapChainFrameBufferState.dbIndex = RT_LAST;
-    swapChainFrameBufferState.dbView = VK_NULL_HANDLE;
-    swapChainFrameBufferState.renderPassId = m_defaultRenderPassHashValue;
-    for (int i = 0; i < NUM_FRAME_BUFFERS; i++) {
-        swapChainFrameBufferState.rtView = m_swapChain.swapChainTexture[i].imageView;
-        CreateFrameBuffer(swapChainFrameBufferState);
-        m_swapChain.swapChainFramebufferHashValue[i] = m_frameBufferCache.find(swapChainFrameBufferState.GetHashValue())->first;
-    }
-    return VK_SUCCESS;
-}
+// VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainFrameBuffers()
+// {
+//     FRAME_BUFFER_STATE swapChainFrameBufferState;
+//     swapChainFrameBufferState.rtIndex = RT_BACK_BUFFER;
+//     swapChainFrameBufferState.dbIndex = RT_LAST;
+//     swapChainFrameBufferState.pDepthTexture = VK_NULL_HANDLE;
+//     swapChainFrameBufferState.renderPassId = m_defaultRenderPassHashValue;
+//     for (int i = 0; i < NUM_FRAME_BUFFERS; i++) {
+//         swapChainFrameBufferState.pRenderTargetTexture = &m_swapChain.swapChainTexture[i];
+//         CreateFrameBuffer(swapChainFrameBufferState);
+//         m_swapChain.swapChainFramebufferHashValue[i] = m_frameBufferCache.find(swapChainFrameBufferState.GetHashValue())->first;
+//     }
+//     return VK_SUCCESS;
+// }
 
 
 VkResult VULKAN_DRIVER_INTERFACE::InitCommandBuffers()
@@ -1702,6 +1772,9 @@ VkResult VULKAN_DRIVER_INTERFACE::InitConstBuffers()
         ASSERT(NUM_CONSTANT_BUFFERS > EFFECT_DATA::CONST_BUFFERS_SLOT[i]);
     }
     
+    m_constBufferOffsets.fill(0);
+    m_constBufferLastRecordOffset.fill(0);
+
     const uint32_t DYNAMIC_CONST_BUFFER_SIZE = 1 * 1024 * 1024; // 1 Mb
 
     VkBufferCreateInfo constBufferInfo = {};
@@ -1739,7 +1812,7 @@ void VULKAN_DRIVER_INTERFACE::SetupSamples()
     }
 }
 
-VkResult VULKAN_DRIVER_INTERFACE::CreateSampler(VkFilter minMagFilter, VkSamplerMipmapMode mapFilter, VkSamplerAddressMode addressMode, float anisoParam, VkSampler& sampler)
+VkResult VULKAN_DRIVER_INTERFACE::CreateSampler(VkFilter minMagFilter, VkSamplerMipmapMode mapFilter, VkSamplerAddressMode addressMode, VkCompareOp compareOp, float anisoParam, VkSampler& sampler)
 {
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1752,8 +1825,8 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateSampler(VkFilter minMagFilter, VkSampler
     samplerInfo.maxAnisotropy = anisoParam;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.compareEnable = compareOp == VK_COMPARE_OP_ALWAYS ? VK_FALSE : TRUE;
+    samplerInfo.compareOp = compareOp;
     samplerInfo.mipmapMode = mapFilter;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
@@ -1771,9 +1844,17 @@ void VULKAN_DRIVER_INTERFACE::DestroySampler(VkSampler& sampler)
 
 VkResult VULKAN_DRIVER_INTERFACE::InitSamplers()
 {
-    ASSERT(NUM_SAMPLERS < 8);
-    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 16.f, m_samplers[EFFECT_DATA::REPEAT_LINEAR_ANISO]);
-    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,  0.f, m_samplers[EFFECT_DATA::REPEAT_LINEAR]);
+    ASSERT(NUM_SAMPLERS < 8 && NUM_SAMPLERS == EFFECT_DATA::SAMPLER_LAST);
+    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_COMPARE_OP_ALWAYS, 16.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_LINEAR_ANISO]);
+    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_LINEAR]);
+    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_LINEAR]);
+    CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_POINT]);
+    CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        VK_COMPARE_OP_LESS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_POINT_CMP]);
 
     const int FIRST_SAMPLER_BINDING_SLOT = 120;
     for (int i = 0; i < NUM_SAMPLERS; i++) {
@@ -1968,25 +2049,25 @@ VkResult VULKAN_DRIVER_INTERFACE::InitDebugMessenger()
     return result;
 }
 
-VkResult VULKAN_DRIVER_INTERFACE::InitDefaultRenderPass()
-{
-    RENDER_PASS_STATE state;
-    state.useRT = true;
-    state.useDB = false;
-    state.rtAttachDesc.flags = 0;
-    state.rtAttachDesc.format = m_swapChain.swapChainTexture[0].format;
-    state.rtAttachDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-    state.rtAttachDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    state.rtAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    state.rtAttachDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    state.rtAttachDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    state.rtAttachDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    state.rtAttachDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkResult result = CreateRenderPass(state);
-    m_defaultRenderPassHashValue = m_renderPassCache.find(state.GetHashValue())->first;
-    return result;
-}
+// VkResult VULKAN_DRIVER_INTERFACE::InitDefaultRenderPass()
+// {
+//     RENDER_PASS_STATE state;
+//     state.useRT = true;
+//     state.useDB = false;
+//     state.rtAttachDesc.flags = 0;
+//     state.rtAttachDesc.format = m_swapChain.swapChainTexture[0].format;
+//     state.rtAttachDesc.samples = VK_SAMPLE_COUNT_1_BIT;
+//     state.rtAttachDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+//     state.rtAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+//     state.rtAttachDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+//     state.rtAttachDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+//     state.rtAttachDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+//     state.rtAttachDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+// 
+//     VkResult result = CreateRenderPass(state);
+//     m_defaultRenderPassHashValue = m_renderPassCache.find(state.GetHashValue())->first;
+//     return result;
+// }
 
 void VULKAN_DRIVER_INTERFACE::TermDebugMessenger()
 {
@@ -2064,4 +2145,26 @@ void VULKAN_DRIVER_INTERFACE::EndSingleTimeCommands(VkCommandBuffer commandBuffe
     vkQueueWaitIdle(m_queueFamilies.graphicsQueue);
 
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+}
+
+uint32_t FRAME_BUFFER_STATE::GetFrameBufferHeight() const
+{
+    uint32_t frameBufferHeight = 0;
+    if (pRenderTargetTexture) {
+        frameBufferHeight = pRenderTargetTexture->height;
+    } else if (pDepthTexture) {
+        frameBufferHeight = pDepthTexture->height;
+    }
+    return frameBufferHeight;
+}
+
+uint32_t FRAME_BUFFER_STATE::GetFrameBufferWigth() const
+{
+    uint32_t frameBufferWidth = 0;
+    if (pRenderTargetTexture) {
+        frameBufferWidth = pRenderTargetTexture->width;
+    } else if (pDepthTexture) {
+        frameBufferWidth = pDepthTexture->width;
+    }
+    return frameBufferWidth;
 }

@@ -35,12 +35,14 @@
     <ClInclude Include="Headers\render.h" />
     <ClInclude Include="Headers\renderPassOpaque.h" />
     <ClInclude Include="Headers\renderPassResolve.h" />
+    <ClInclude Include="Headers\renderPassShadow.h" />
     <ClInclude Include="Headers\renderTargetEnum.h" />
     <ClInclude Include="Headers\renderTargetManager.h" />
     <ClInclude Include="Headers\resourceSystem.h" />
     <ClInclude Include="Headers\shaderManager.h" />
     <ClInclude Include="Headers\terrain.h" />
     <ClInclude Include="Headers\textureManager.h" />
+    <ClInclude Include="Headers\visibilitySystem.h" />
     <ClInclude Include="Headers\vulkanDriver.h" />
     <ClInclude Include="Headers\windowSystem.h" />
   </ItemGroup>
@@ -56,11 +58,13 @@
     <ClCompile Include="Sources\render.cpp" />
     <ClCompile Include="Sources\renderPassOpaque.cpp" />
     <ClCompile Include="Sources\renderPassResolve.cpp" />
+    <ClCompile Include="Sources\renderPassShadow.cpp" />
     <ClCompile Include="Sources\renderTargetManager.cpp" />
     <ClCompile Include="Sources\resourceSystem.cpp" />
     <ClCompile Include="Sources\shaderManager.cpp" />
     <ClCompile Include="Sources\terrain.cpp" />
     <ClCompile Include="Sources\textureManager.cpp" />
+    <ClCompile Include="Sources\visibilitySystem.cpp" />
     <ClCompile Include="Sources\vulkanDriver.cpp" />
     <ClCompile Include="Sources\windowSystem.cpp" />
   </ItemGroup>
@@ -74,13 +78,16 @@
     <FxCompile Include="..\Shaders\baseVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="..\Shaders\common.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\commonFunctions.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenVS.fx">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </FxCompile>
-    <FxCompile Include="..\Shaders\shadowPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\shadowVS.fx">

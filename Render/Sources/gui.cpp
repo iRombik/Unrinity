@@ -20,6 +20,7 @@
 #include "materialManager.h"
 #include "meshManager.h"
 #include "textureManager.h"
+#include "renderTargetManager.h"
 
 static GLFWwindow* g_Window = NULL;    // Main window
 static double               g_Time = 0.0;
@@ -71,7 +72,7 @@ bool GUI_SYSTEM::Init() {
     ASSERT(sizeof(UI_VERTEX) == sizeof(ImDrawVert));
     VkBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    vertexBufferInfo.size = 2048 * sizeof(UI_VERTEX);
+    vertexBufferInfo.size = m_vertexSize * sizeof(UI_VERTEX);
     vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     //alloc memory and init buffer
@@ -84,7 +85,7 @@ bool GUI_SYSTEM::Init() {
 
     VkBufferCreateInfo indexBufferInfo = {};
     indexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    indexBufferInfo.size = 4096 * sizeof(ImDrawIdx);
+    indexBufferInfo.size = m_indexSize * sizeof(ImDrawIdx);
     indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     VkResult indexBufferCreated =
@@ -93,6 +94,13 @@ bool GUI_SYSTEM::Init() {
         ERROR_MSG("Creation index buffer for UI failed!");
         return false;
     }
+
+    m_intermidiateVertexBuffer = new uint8_t[m_vertexSize * sizeof(UI_VERTEX)];
+    m_intermidiateIndexBuffer = new uint8_t[m_indexSize * sizeof(ImDrawIdx)];
+
+    m_showLights = false;
+    m_debugRT = RT_LAST;
+
     return true;
 }
 
@@ -201,11 +209,15 @@ void GUI_SYSTEM::Render() {
             const ImDrawList* cmd_list = draw_data->CmdLists[n];
             const size_t verBufSize = cmd_list->VtxBuffer.Size * sizeof(ImDrawVert);
             const size_t indBufSize = cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx);
-            pDrvInterface->FillBuffer((const uint8_t*)(cmd_list->VtxBuffer.Data), verBufSize, vertexBufferOffset, m_mesh.vertexBuffer);
-            pDrvInterface->FillBuffer((const uint8_t*)(cmd_list->IdxBuffer.Data), indBufSize, indexBufferOffset, m_mesh.indexBuffer);
+
+            memcpy(m_intermidiateVertexBuffer + vertexBufferOffset, cmd_list->VtxBuffer.Data, verBufSize);
+            memcpy(m_intermidiateIndexBuffer + indexBufferOffset, cmd_list->IdxBuffer.Data, indBufSize);
+
             vertexBufferOffset += verBufSize;
             indexBufferOffset += indBufSize;
         }
+        pDrvInterface->FillBuffer(m_intermidiateVertexBuffer, vertexBufferOffset, 0, m_mesh.vertexBuffer);
+        pDrvInterface->FillBuffer(m_intermidiateIndexBuffer, indexBufferOffset, 0, m_mesh.indexBuffer);
     }
 
     pDrvInterface->SetDynamicState(VK_DYNAMIC_STATE_SCISSOR, true);
@@ -280,6 +292,14 @@ void GUI_SYSTEM::Render() {
                     scissor.extent.height = (uint32_t)(clip_rect.w - clip_rect.y);
                     pDrvInterface->SetScissorRect(scissor);
 
+                    if (pcmd->TextureId) {
+                        //todo
+                        pRenderTargetManager->ReturnRenderTarget((RENDER_TARGET)m_debugRT);
+                        pDrvInterface->SetRenderTargetAsShaderResource((RENDER_TARGET)m_debugRT, 16);
+                    } else {
+                        pDrvInterface->SetTexture(&m_fontTexture, 16);
+                    }
+
                     // Draw
                     pDrvInterface->DrawIndexed(pcmd->ElemCount, pcmd->VtxOffset + global_vtx_offset, pcmd->IdxOffset + global_idx_offset);
                 }
@@ -293,6 +313,9 @@ void GUI_SYSTEM::Render() {
 
 void GUI_SYSTEM::Term()
 {
+    delete[] m_intermidiateVertexBuffer;
+    delete[] m_intermidiateIndexBuffer;
+
     pDrvInterface->DestroyTexture(m_fontTexture);
     pDrvInterface->DestroyBuffer(m_mesh.vertexBuffer);
     pDrvInterface->DestroyBuffer(m_mesh.indexBuffer);
@@ -440,8 +463,7 @@ void GUI_SYSTEM::DescribeInterface()
 
     static glm::vec4 clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
     
-    static bool showLights = false;
-    bool isButtonStateChanged = ImGui::Checkbox("Show lights", &showLights);
+    bool isButtonStateChanged = ImGui::Checkbox("Show lights", &m_showLights);
     if (isButtonStateChanged) {
         MESH_COMPONENT lightDebugMesh;
         lightDebugMesh.pMesh = pMeshManager->GetMeshByName("sphere");
@@ -452,8 +474,18 @@ void GUI_SYSTEM::DescribeInterface()
         redMaterial.pRoughnessTex = pTextureManager->GetDefaultTexture(DEFAULT_RED_TEXTURE);
         redMaterial.pMetalnessTex = pTextureManager->GetDefaultTexture(DEFAULT_BLACK_TEXTURE);
 
-        for (auto light : lights) {
-            if (showLights) {
+        if (m_showLights) {
+            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, lightDebugMesh);
+            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, redMaterial);
+            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, RENDERED_COMPONENT());
+        } else {
+            ECS::pEcsCoordinator->RemoveComponentFromEntity<RENDERED_COMPONENT>(directionalLight);
+            ECS::pEcsCoordinator->RemoveComponentFromEntity<MESH_COMPONENT>(directionalLight);
+            ECS::pEcsCoordinator->RemoveComponentFromEntity<MATERIAL_COMPONENT>(directionalLight);
+        }
+
+        for (auto light : pointLights) {
+            if (m_showLights) {
                 ECS::pEcsCoordinator->AddComponentToEntity(light, lightDebugMesh);
                 ECS::pEcsCoordinator->AddComponentToEntity(light, redMaterial);
                 ECS::pEcsCoordinator->AddComponentToEntity(light, RENDERED_COMPONENT());
@@ -465,30 +497,37 @@ void GUI_SYSTEM::DescribeInterface()
         }
     }
 
-    TRANSFORM_COMPONENT* lightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(lights[0]);
-    POINT_LIGHT_COMPONENT* lightComponent = ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(lights[0]);
-    ImGui::Text("Light0 params");
-    ImGui::SliderFloat3("Position", (float*)&lightTransform->position, -40.f, +40.f);
-    ImGui::SliderFloat("Intensity", &lightComponent->intensity, 0.0f, 10.0f);
-    ImGui::SliderFloat("Attenuation", &lightComponent->attenuationParam, 0.0f, 0.05f);
-    ImGui::ColorEdit3("Color", (float*)&lightComponent->color);
-    ImGui::ColorEdit3("Ambient color", (float*)&lightComponent->ambient);
+    ImGui::ColorEdit3("Ambient color", (float*)&COMMON_AMBIENT);
+    if (ImGui::CollapsingHeader("DirLight")) {
+        TRANSFORM_COMPONENT* dirLightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
+        DIRECTIONAL_LIGHT_COMPONENT* dirLightComponent = ECS::pEcsCoordinator->GetComponent<DIRECTIONAL_LIGHT_COMPONENT>(directionalLight);
+
+        ImGui::SliderFloat3("Position", (float*)&dirLightTransform->position, -60.f, +60.f);
+        ImGui::SliderFloat("Intensity", &dirLightComponent->intensity, 0.0f, 10.0f);
+        ImGui::ColorEdit3("Color", (float*)&dirLightComponent->color);
+    }
+    if (ImGui::CollapsingHeader("Light0")) {
+        TRANSFORM_COMPONENT* lightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
+        POINT_LIGHT_COMPONENT* lightComponent = ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(pointLights[0]);
+
+        ImGui::SliderFloat3("Position", (float*)&lightTransform->position, -60.f, +60.f);
+        ImGui::SliderFloat("Intensity", &lightComponent->intensity, 0.0f, 10.0f);
+        ImGui::SliderFloat("Area light", &lightComponent->areaLight, 50.0f, 200.0f);
+        ImGui::ColorEdit3("Color", (float*)&lightComponent->color);
+    }
+
+    ImGui::Separator();
+    ImGui::Combo("RT debug view", &m_debugRT, RENDER_TARGET_NAME, RENDER_TARGET::RT_LAST + 1);
+    if (m_debugRT != RT_LAST) {
+        const ImVec2 size(192.f / 9.f * 16.f, 192.f);
+        ImGui::Image((void*)0x8, size);
+    }
 
     if (ImGui::Button("Rebuild shader cache")) {
     }
-    /*
-    ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-    ImGui::Checkbox("Demo Window", &showWindow);      // Edit bools storing our window open/close state
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::ColorEdit3("clear color", (float*)&clearColor); // Edit 3 floats representing a color
 
-    if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-        counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
-
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    */
+//     bool a = true;
+//     ImGui::ShowDemoWindow(&a);
     ImGui::End();
 }
 
@@ -496,6 +535,9 @@ void GUI_SYSTEM::BeginRenderPass()
 {
     pDrvInterface->SetRenderTarget(RT_BACK_BUFFER, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
     pDrvInterface->BeginRenderPass();
+    if (m_debugRT != RT_LAST) {
+        pDrvInterface->SetRenderTargetAsShaderResource((RENDER_TARGET)m_debugRT, 17);
+    }
 }
 
 void GUI_SYSTEM::EndRenderPass()

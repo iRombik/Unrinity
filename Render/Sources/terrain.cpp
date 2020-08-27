@@ -1,6 +1,9 @@
 #include "terrain.h"
 #include "vulkanDriver.h"
 
+//tmp
+#include "renderTargetManager.h"
+
 void CreateIndexData(std::vector<uint16_t>& indexes) {
     const int numColumns = 4;
     const int numLines = 4;
@@ -62,9 +65,16 @@ void TERRAIN_SYSTEM::Render()
     terrainData.terrainStartPos = m_terrainStartPoint;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_TERRAIN, &terrainData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_TERRAIN]);
 
+    //tmp
+    pRenderTargetManager->ReturnRenderTarget(RT_SHADOW_MAP);
+    const VULKAN_TEXTURE* sm = pRenderTargetManager->GetRenderTarget(RT_SHADOW_MAP, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     for (TERRAIN_BLOCK& block : m_blocks) {
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
+        pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_TERRAIN);
+
+        pDrvInterface->SetTexture(sm, 30);
 
         pDrvInterface->FillPushConstantBuffer(&block.pos, sizeof(block.pos));
 

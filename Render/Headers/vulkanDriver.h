@@ -12,8 +12,8 @@
 #include "renderTargetEnum.h"
 
 const uint32_t NUM_FRAME_BUFFERS = 2;
-const uint32_t NUM_CONSTANT_BUFFERS = 3;
-const uint32_t NUM_SAMPLERS = 2;
+const uint32_t NUM_CONSTANT_BUFFERS = 4;
+const uint32_t NUM_SAMPLERS = 5;
 
 struct VULKAN_BUFFER
 {
@@ -89,8 +89,8 @@ struct SWAP_CHAIN {
 
     SWAP_CHAIN_CREATE_PARAMS createParams;
     VkSwapchainKHR swapChain;
-    std::array<VULKAN_TEXTURE, NUM_FRAME_BUFFERS> swapChainTexture;
-    std::array<size_t, NUM_FRAME_BUFFERS>         swapChainFramebufferHashValue;
+//     std::array<VULKAN_TEXTURE, NUM_FRAME_BUFFERS> swapChainTexture;
+//     std::array<size_t, NUM_FRAME_BUFFERS>         swapChainFramebufferHashValue;
     uint32_t curSwapChainImageId;
 };
 
@@ -146,17 +146,26 @@ struct RENDER_PASS_STATE {
 };
 
 struct FRAME_BUFFER_STATE {
-    FRAME_BUFFER_STATE() : rtIndex(RT_LAST), dbIndex(RT_LAST), rtView(VK_NULL_HANDLE), dbView(VK_NULL_HANDLE), renderPassId(0) {}
+    FRAME_BUFFER_STATE() : rtIndex(RT_LAST), dbIndex(RT_LAST), pRenderTargetTexture(nullptr), pDepthTexture(nullptr), renderPassId(0) {}
 
     RENDER_TARGET rtIndex;
     RENDER_TARGET dbIndex;
-    VkImageView rtView;
-    VkImageView dbView;
+    const VULKAN_TEXTURE* pRenderTargetTexture;
+    const VULKAN_TEXTURE* pDepthTexture;
     size_t renderPassId;
+
+    uint32_t GetFrameBufferHeight() const;
+    uint32_t GetFrameBufferWigth() const;
 
     size_t GetHashValue() const {
         size_t seed = 0;
-        hash_combine(seed, rtView, dbView, renderPassId);
+        hash_combine(seed, renderPassId);
+        if (pRenderTargetTexture) {
+            hash_combine(seed, pRenderTargetTexture->imageView);
+        }
+        if (pDepthTexture) {
+            hash_combine(seed, pDepthTexture->imageView);
+        }
         return seed;
     }
 };
@@ -172,6 +181,8 @@ struct PIPLINE_STATE {
     uint8_t vertexFormatId;
     uint8_t shaderId;
     uint8_t dynamicFlagsMask;
+    uint32_t viewportWidth;
+    uint32_t viewportHeight;
     union
     {
         DEPTH_STATE depthStateS;
@@ -183,6 +194,7 @@ struct PIPLINE_STATE {
     size_t GetHashValue() const {
         size_t seed = 0;
         hash_combine(seed, vertexFormatId, shaderId, dynamicFlagsMask, depthStateU, piplineLayoutId);
+        hash_combine(seed, viewportWidth, viewportHeight);
         return seed;
     }
 };
@@ -245,7 +257,7 @@ public:
 //     VkFramebuffer& GetBackBufferFrameBuffer();
     uint32_t GetBackBufferWidth() const { return m_swapChain.createParams.extent.width; }
     uint32_t GetBackBufferHeight() const { return m_swapChain.createParams.extent.height; }
-    VkFormat GetBackBufferFormat() const { return m_swapChain.swapChainTexture[0].format; }
+    //VkFormat GetBackBufferFormat() const { return m_swapChain.swapChainTexture[0].format; }
 
     VkResult      CreateBuffer  (const VkBufferCreateInfo& bufferInfo, bool isUpdatedByCPU, VULKAN_BUFFER& createdBuffer);
     VkResult      CreateAndFillBuffer(const VkBufferCreateInfo& bufferInfo, const uint8_t* pSourceData, bool isUpdatedByCPU, VULKAN_BUFFER& createdBuffer);
@@ -293,14 +305,15 @@ private:
     VkCommandBuffer BeginSingleTimeCommands();
     void            EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-    size_t GetDeviceCoherentSize(size_t bufferSize) const;
+    size_t GetDeviceCoherentValue(size_t bufferSize) const;
 
     VkResult CreateTextureImage(const VkImageCreateInfo& imageInfo, VULKAN_TEXTURE& createdTexure);
     VkResult CopyBufferToTexture(const VULKAN_BUFFER& buffer, VkDeviceSize bufferOffset, VULKAN_TEXTURE& texture, uint32_t mipLevel);
     VkResult CreateImageView(const VkImageViewCreateInfo& imageViewInfo, VULKAN_TEXTURE& texture);
 
     void     SetupSamples();
-    VkResult CreateSampler(VkFilter minMagFilter, VkSamplerMipmapMode mapFilter, VkSamplerAddressMode addressMode, float anisoParam, VkSampler& sampler);
+    VkResult CreateSampler(VkFilter minMagFilter, VkSamplerMipmapMode mapFilter, VkSamplerAddressMode addressMode, 
+        VkCompareOp compareOp, float anisoParam, VkSampler& sampler);
     void     DestroySampler(VkSampler& sampler);
 
     bool     UpdatePiplineState();
@@ -339,6 +352,8 @@ private:
 	VkFence     m_cpuGpuSyncFence[NUM_FRAME_BUFFERS];
 
     //todo:: make one buffer for everything https://developer.nvidia.com/vulkan-memory-management
+    std::array<uint32_t, NUM_CONSTANT_BUFFERS>          m_constBufferLastRecordOffset;
+    std::array<uint32_t, NUM_CONSTANT_BUFFERS>          m_constBufferOffsets;
     std::array<VULKAN_BUFFER, NUM_CONSTANT_BUFFERS>  m_constBuffers;
     std::array<VkSampler, NUM_SAMPLERS>              m_samplers;
 

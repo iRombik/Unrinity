@@ -11,7 +11,7 @@ bool RENDER_TARGET_MANAGER::Init(uint32_t backBufferWidth, uint32_t backBufferHe
 
     bool isInited = true;
     {
-        VULKAN_TEXTURE_CREATE_DATA depthBufferCreateData(VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, backBufferWidth, backBufferHeight);
+        VULKAN_TEXTURE_CREATE_DATA depthBufferCreateData(VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, backBufferWidth, backBufferHeight);
         VkResult result = pDrvInterface->CreateRenderTarget(depthBufferCreateData, m_renderTargetsState[RT_DEPTH_BUFFER].texture);
         ASSERT(result == VK_SUCCESS);
         isInited &= result == VK_SUCCESS;
@@ -28,14 +28,9 @@ bool RENDER_TARGET_MANAGER::Init(uint32_t backBufferWidth, uint32_t backBufferHe
         const uint32_t SHADOW_MAP_SIZE = 2048;
         VULKAN_TEXTURE_CREATE_DATA shadowMapCreateData(VK_FORMAT_D16_UNORM, VkImageUsageFlagBits(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
             SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-        VkResult result = pDrvInterface->CreateRenderTarget(shadowMapCreateData, m_renderTargetsState[RT_DEPTH_BUFFER].texture);
+        VkResult result = pDrvInterface->CreateRenderTarget(shadowMapCreateData, m_renderTargetsState[RT_SHADOW_MAP].texture);
         ASSERT(result == VK_SUCCESS);
         isInited &= result == VK_SUCCESS;
-    }
-
-    if (isInited) {
-        m_backBufferHeight = backBufferHeight;
-        m_backBufferWight = backBufferWidth;
     }
 
     return isInited;
@@ -43,9 +38,6 @@ bool RENDER_TARGET_MANAGER::Init(uint32_t backBufferWidth, uint32_t backBufferHe
 
 void RENDER_TARGET_MANAGER::Resize(uint32_t backBufferWidth, uint32_t backBufferHeight)
 {
-    if (backBufferHeight == m_backBufferHeight && backBufferWidth == m_backBufferWight) {
-        return;
-    }
 }
 
 void RENDER_TARGET_MANAGER::Term()
@@ -64,17 +56,18 @@ void RENDER_TARGET_MANAGER::StartFrame()
     }
 }
 
-const VULKAN_TEXTURE& RENDER_TARGET_MANAGER::GetRenderTarget(RENDER_TARGET rtIndex, VkAccessFlags accessFlags, VkImageLayout layout)
+const VULKAN_TEXTURE* RENDER_TARGET_MANAGER::GetRenderTarget(RENDER_TARGET rtIndex, VkAccessFlags accessFlags, VkImageLayout layout)
 {
     ASSERT(m_renderTargetsAvailabilityMask.test(rtIndex));
     m_renderTargetsAvailabilityMask.reset(rtIndex);
+    
     RENDER_TARGET_STATE& rtState = m_renderTargetsState[rtIndex];
     rtState.futureLayout = layout;
     rtState.accessFlags = accessFlags;
     if (rtState.layout != rtState.futureLayout) {
         pDrvInterface->ChangeTextureLayout(rtState.layout, rtState.futureLayout, rtState.texture);
     }
-    return rtState.texture;
+    return &rtState.texture;
 }
 
 void RENDER_TARGET_MANAGER::ReturnRenderTarget(RENDER_TARGET rtIndex)

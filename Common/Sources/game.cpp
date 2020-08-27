@@ -59,16 +59,12 @@ void GAME_MANAGER::GenerateSimpleLevel()
         {0.f, 0.f, 0.f, 1.f}
     };
     ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, camera);
-    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, CAMERA_TRANSFORM_COMPONENT(glm::vec3(-35.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f)));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, TRANSFORM_COMPONENT(glm::vec3(-35.f, 0.f, 0.f)));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, ROTATE_COMPONENT());
     ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, INPUT_CONTROLLED());
 
     GAME_CAMERA_CONROL* pCameraSystem = ECS::pEcsCoordinator->CreateSystem<GAME_CAMERA_CONROL>();
     pCameraSystem->Init();
-
-    CAMERA_MATRIX_UPDATE_SYSTEM* pCameraUpdateSystem = ECS::pEcsCoordinator->CreateSystem<CAMERA_MATRIX_UPDATE_SYSTEM>();
-    pCameraUpdateSystem->Init();
-    ECS::pEcsCoordinator->SendEvent(UPDATE_CAMERA_MATRIX_EVENT(gameCamera));
-
 
     for (int i = 0; i < 300; i++) {
         ECS::ENTITY_TYPE cubeEntity = ECS::pEcsCoordinator->CreateEntity();
@@ -94,6 +90,8 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
     CAMERA_COMPONENT camera;
     camera.fov = 120.f;
     camera.aspectRatio = 16.f / 9.f;
+    camera.nearPlane = 1.f;
+    camera.farPlane = 256.f;
     camera.viewProjMatrix = {
         {1.f, 0.f, 0.f, 0.f},
         {0.f, 1.f, 0.f, 0.f},
@@ -101,15 +99,12 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
         {0.f, 0.f, 0.f, 1.f}
     };
     ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, std::move(camera));
-    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, CAMERA_TRANSFORM_COMPONENT(center + glm::vec3(-35.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f)));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, TRANSFORM_COMPONENT(center + glm::vec3(-35.f, 0.f, 0.f)));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, ROTATE_COMPONENT());
     ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, INPUT_CONTROLLED());
 
     GAME_CAMERA_CONROL* pCameraSystem = ECS::pEcsCoordinator->CreateSystem<GAME_CAMERA_CONROL>();
     pCameraSystem->Init();
-
-    CAMERA_MATRIX_UPDATE_SYSTEM* pCameraUpdateSystem = ECS::pEcsCoordinator->CreateSystem<CAMERA_MATRIX_UPDATE_SYSTEM>();
-    pCameraUpdateSystem->Init();
-    ECS::pEcsCoordinator->SendEvent(UPDATE_CAMERA_MATRIX_EVENT(gameCamera));
 
     MESH_COMPONENT mesh;
     mesh.pMesh = pMeshManager->GetMeshByName("sphere");
@@ -120,10 +115,10 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
     metalMaterial.pRoughnessTex = pTextureManager->GetTexture("Metal002/Metal002_2K_Roughness.jpg");
     metalMaterial.pMetalnessTex = pTextureManager->GetTexture("Metal002/Metal002_2K_Metalness.jpg");
 
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 6; j++) {
             ECS::ENTITY_TYPE cubeEntity = ECS::pEcsCoordinator->CreateEntity();
-            TRANSFORM_COMPONENT cubeTransform = glm::vec3(0.f, -10.f + 5.f * j, -10.f + 5.f * i) + center;
+            TRANSFORM_COMPONENT cubeTransform = glm::vec3(0.f, -8.f + 3.f * j, -8.f + 3.f * i) + center;
             ROTATE_COMPONENT rotation = glm::fquat();
             ECS::pEcsCoordinator->AddComponentToEntity(cubeEntity, cubeTransform);
             ECS::pEcsCoordinator->AddComponentToEntity(cubeEntity, metalMaterial);
@@ -138,22 +133,50 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
         }
     }
 
-    ECS::ENTITY_TYPE lightEntity = ECS::pEcsCoordinator->CreateEntity();
-    POINT_LIGHT_COMPONENT light;
-    light.color = glm::vec3(1.f);
-    light.ambient = glm::vec3(0.2f);
-    light.attenuationParam = 0.005f;
-    light.intensity = 3.f;
-    ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, light);
+    {
+        ECS::ENTITY_TYPE lightEntity = ECS::pEcsCoordinator->CreateEntity();
+        POINT_LIGHT_COMPONENT light;
+        light.color = glm::vec3(1.f);
+        light.areaLight = 100.0f;
+        light.intensity = 3.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, light);
 
-    TRANSFORM_COMPONENT transform;
-    transform.position = center + glm::vec3(-20.f, 0.f, 0.f);
-    ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, transform);
+        TRANSFORM_COMPONENT transform;
+        transform.position = center + glm::vec3(-30.f, 0.f, 0.f);
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, transform);
 
-    lights.push_back(lightEntity);
+        CAMERA_COMPONENT lightCamera;
+        lightCamera.aspectRatio = 1.f;
+        lightCamera.nearPlane = 0.1;
+        lightCamera.farPlane = 100.f;
+        lightCamera.fov = 140.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, lightCamera);
 
-    const glm::vec2 terrainStartPos = { -32.f, -32.f };
-    const glm::vec2 terrainSize = { 64.f, 64.f };
+        pointLights.push_back(lightEntity);
+    }
+
+    {
+        directionalLight = ECS::pEcsCoordinator->CreateEntity();
+        DIRECTIONAL_LIGHT_COMPONENT light;
+        light.color = glm::vec3(1.f);
+        light.attenuationParam = 0.005f;
+        light.intensity = 3.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, light);
+
+        TRANSFORM_COMPONENT transform;
+        transform.position = center + glm::vec3(15.f, 30.f, 0.f);
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, transform);
+
+        CAMERA_COMPONENT lightCamera;
+        lightCamera.aspectRatio = 1.f;
+        lightCamera.nearPlane = 0.1;
+        lightCamera.farPlane = 100.f;
+        lightCamera.fov = 140.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, lightCamera);
+    }
+
+    const glm::vec2 terrainStartPos = { -128.f, -128.f };
+    const glm::vec2 terrainSize = { 256.f, 256.f };
     ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Init(terrainStartPos, terrainSize);
 }
 
@@ -168,8 +191,8 @@ void GAME_MANAGER::Run() {
         }
         //Updates
         ECS::pEcsCoordinator->GetSystem<GAME_CAMERA_CONROL>()->Update();
-        ECS::pEcsCoordinator->GetSystem<CAMERA_MATRIX_UPDATE_SYSTEM>()->Update();
         ECS::pEcsCoordinator->GetSystem<GUI_SYSTEM>()->Update();
+        ECS::pEcsCoordinator->GetSystem<RENDER_SYSTEM>()->Update();
 
         //Render
         ECS::pEcsCoordinator->GetSystem<RENDER_SYSTEM>()->Render();

@@ -33,20 +33,24 @@ namespace ECS {
 
         void InsertData(ENTITY_TYPE entity, T& component) {
             ASSERT(entity < MAX_ENTITIES);
-            const size_t index = m_curSize;
-            m_entityToIndexMap[entity] = index;
-            m_indexToEntityMap[index] = entity;
-            m_componentArray[index] = component;
-            m_curSize++;
+            size_t index = m_entityToIndexMap[entity];
+            if (index == INVALID_COMPONENT_ID) {
+                index = m_curSize++;
+                m_entityToIndexMap[entity] = index;
+                m_indexToEntityMap[index] = entity;
+            }
+            m_componentArray[index] = std::move(component);
         }
 
         void InsertData(ENTITY_TYPE entity, T&& component) {
             ASSERT(entity < MAX_ENTITIES);
-            const size_t index = m_curSize;
-            m_entityToIndexMap[entity] = index;
-            m_indexToEntityMap[index] = entity;
+            size_t index = m_entityToIndexMap[entity];
+            if (index == INVALID_COMPONENT_ID) {
+                index = m_curSize++;
+                m_entityToIndexMap[entity] = index;
+                m_indexToEntityMap[index] = entity;
+            }
             m_componentArray[index] = std::move(component);
-            m_curSize++;
         }
 
         void RemoveData(ENTITY_TYPE entity) {

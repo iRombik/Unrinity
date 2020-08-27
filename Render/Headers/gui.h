@@ -19,4 +19,10 @@ private:
     MESH m_mesh;
     //
     bool m_showLights;
+    int m_debugRT;
+
+    //tmp thing to avoid non multiple to VkPhysicalDeviceLimits::nonCoherentAtomSize vertex/index offsets
+    UINT m_vertexSize = 8096, m_indexSize = 16000;
+    uint8_t* m_intermidiateVertexBuffer;
+    uint8_t* m_intermidiateIndexBuffer;
 };

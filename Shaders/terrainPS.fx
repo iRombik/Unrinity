@@ -1,5 +1,8 @@
-[[vk::binding(30)]] Texture2D texShadowMap;
+#include "common.fx"
+#include "commonFunctions.fx"
+#include "terrainCommon.fx"
 
-void main(out float4 outColor : SV_Target) {
-    outColor = float4(0.05f, 0.4f, 0.2f, 1.f);
+void main(in VERTEX_OUTPUT vertexOut, out float4 outColor : SV_Target) {
+    float shadowFactor = ShadowFactorPCF(vertexOut.worldPos);
+    outColor = shadowFactor;
 }
