@@ -6,20 +6,27 @@
 #include "componentManager.h"
 
 class MESH_LOADER;
+class GLTF_LOADER;
 class MESH_MANAGER;
+struct VULKAN_MESH;
 
-struct MESH
+struct MESH_COMPONENT : public ECS::COMPONENT<VULKAN_MESH>
 {
-    uint8_t vertexFormatId;
-    VULKAN_BUFFER vertexBuffer;
-    VULKAN_BUFFER indexBuffer;
-    uint32_t numOfVertexes;
-    uint32_t numOfIndexes;
+    const VULKAN_MESH* pMesh;
 };
 
-struct MESH_COMPONENT : public ECS::COMPONENT<MESH>
+struct NODE_COMPONENT : public ECS::COMPONENT<NODE_COMPONENT>
 {
-    const MESH* pMesh;
+    NODE_COMPONENT* pParent;
+    std::vector<NODE_COMPONENT*> pChildren;
+
+    glm::mat4x4 transofmMatrix;
+    MESH_COMPONENT* pMeshComponent;
+};
+
+struct MODEL_COMPONENT : public ECS::COMPONENT<MODEL_COMPONENT>
+{
+    std::vector<NODE_COMPONENT> nodes;
 };
 
 class MESH_MANAGER {
@@ -31,18 +38,23 @@ public:
     void LoadCommonMeshes();
     void Term();
 
-    MESH* GetMeshByName(const std::string& meshName);
+    VULKAN_MESH* GetMeshByName(const std::string& meshName);
 private:
-    const std::string MESH_DIR = "../Media/Meshes/";
-    const std::string MESH_EXT = ".obj";
+    const std::string OBJ_MESH_DIR = "../Media/Meshes/obj";
+    const std::string OBJ_MESH_EXT = ".obj";
 
-    std::string GetMeshPath(const std::string& meshName);
+    const std::string GLTF_MESH_DIR = "../Media/Meshes/gltf/";
+    const std::string GLTF_MESH_EXT = ".gltf";
+
+    std::string GetOBJMeshPath(const std::string& meshName);
+    std::string GetGLTFMeshPath(const std::string& meshName);
 
     bool  LoadMesh(const std::string& meshName);
-    void  DestroyMesh (MESH& mesh) const;
+    void  DestroyMesh (VULKAN_MESH& mesh) const;
 
     MESH_LOADER* m_meshLoader;
-    std::unordered_map<std::string, MESH> m_meshesMap;
+    GLTF_LOADER* m_gltfLoader;
+    std::unordered_map<std::string, VULKAN_MESH> m_meshesMap;
 };
 
 extern std::unique_ptr<MESH_MANAGER> pMeshManager;

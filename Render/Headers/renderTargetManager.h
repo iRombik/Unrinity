@@ -46,4 +46,4 @@ private:
     uint8_t m_curSwapChainTexture;
 };
 
-extern std::unique_ptr< RENDER_TARGET_MANAGER> pRenderTargetManager;
+extern std::unique_ptr<RENDER_TARGET_MANAGER> pRenderTargetManager;

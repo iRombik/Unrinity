@@ -21,6 +21,8 @@
 std::unique_ptr<VULKAN_DRIVER_INTERFACE> pDrvInterface;
 std::function<void(uint32_t&, uint32_t&, void*&)> pCallbackGetWindowParams;
 
+static const float DEPTH_BIAS_CLAMP = 1.f;
+
 bool VULKAN_DRIVER_INTERFACE::Init()
 {
 	m_frameId = 0;
@@ -501,8 +503,9 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateTexture(VULKAN_TEXTURE_CREATE_DATA& crea
     VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
     SetupCurrentCommandBuffer(commandBuffer);
     ChangeTextureLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, createdTexture);
+
     for (uint32_t mipLevelId = 0; mipLevelId < createData.mipLevels; mipLevelId++) {
-        VkResult textureDataSubmitted = pDrvInterface->CopyBufferToTexture(m_intermediateStagingBuffer, createData.mipLevelsOffsets[mipLevelId], createdTexture, mipLevelId);
+        VkResult textureDataSubmitted = pDrvInterface->CopyBufferToTexture(m_intermediateStagingBuffer, mipLevelId == 0 ? 0 : createData.mipLevelsOffsets[mipLevelId], createdTexture, mipLevelId);
         if (textureDataSubmitted != VK_SUCCESS) {
             WARNING_MSG("Can't submit data to texture\n");
             return textureDataSubmitted;
@@ -824,6 +827,7 @@ void VULKAN_DRIVER_INTERFACE::InvalidateDeviceState()
     m_curPassImageDescriptors.clear();
     m_curPassBufferDescriptors.clear();
 
+    m_isDynamicDepthBiasDirty = false;
     m_isDynamicScissorRectDirty = false;
 
     //states
@@ -840,11 +844,11 @@ void VULKAN_DRIVER_INTERFACE::InvalidateDeviceState()
     m_curPiplineState.piplineLayoutId = SIZE_MAX;
     m_curPiplineState.shaderId = EFFECT_DATA::SHR_LAST;
     m_curPiplineState.vertexFormatId = UINT8_MAX;
-    m_curPiplineState.dynamicFlagsMask = 0;
-    m_curPiplineState.depthStateS.depthTestEnable = false;
-    m_curPiplineState.depthStateS.depthWriteEnable = false;
-    m_curPiplineState.depthStateS.depthCompareOp = false;
-    m_curPiplineState.depthStateS.stencilTestEnable = false;
+    m_curPiplineState.dynamicFlagsBitset.reset();
+    m_curPiplineState.depthStateState.depthTestEnable = false;
+    m_curPiplineState.depthStateState.depthWriteEnable = false;
+    m_curPiplineState.depthStateState.depthCompareOp = false;
+    m_curPiplineState.depthStateState.stencilTestEnable = false;
     m_curPiplineState.viewportHeight = 0;
     m_curPiplineState.viewportWidth = 0;
 
@@ -1023,44 +1027,40 @@ void VULKAN_DRIVER_INTERFACE::SetDynamicState(VkDynamicState state, bool enableS
 {
     ASSERT(state < 8);
     const uint8_t stateMask = 1 << state;
-    if (bool(m_curPiplineState.dynamicFlagsMask & stateMask) != enableState) {
-        if (enableState) {
-            m_curPiplineState.dynamicFlagsMask |= stateMask;
-        } else {
-            m_curPiplineState.dynamicFlagsMask &= ~stateMask;
-        }
+    if (m_curPiplineState.dynamicFlagsBitset.test(state) != enableState) {
+        m_curPiplineState.dynamicFlagsBitset.set(state, enableState);
         m_updatePiplineState = true;
     }
 }
 
 void VULKAN_DRIVER_INTERFACE::SetDepthTestState(bool depthTestEnable)
 {
-    if (m_curPiplineState.depthStateS.depthTestEnable != depthTestEnable) {
-        m_curPiplineState.depthStateS.depthTestEnable = depthTestEnable;
+    if (m_curPiplineState.depthStateState.depthTestEnable != depthTestEnable) {
+        m_curPiplineState.depthStateState.depthTestEnable = depthTestEnable;
         m_updatePiplineState = true;
     }
 }
 
 void VULKAN_DRIVER_INTERFACE::SetDepthWriteState(bool depthWriteEnable)
 {
-    if (m_curPiplineState.depthStateS.depthWriteEnable != depthWriteEnable) {
-        m_curPiplineState.depthStateS.depthWriteEnable = depthWriteEnable;
+    if (m_curPiplineState.depthStateState.depthWriteEnable != depthWriteEnable) {
+        m_curPiplineState.depthStateState.depthWriteEnable = depthWriteEnable;
         m_updatePiplineState = true;
     }
 }
 
 void VULKAN_DRIVER_INTERFACE::SetDepthComparitionOperation(bool depthCompare)
 {
-    if (m_curPiplineState.depthStateS.depthCompareOp != depthCompare) {
-        m_curPiplineState.depthStateS.depthCompareOp = depthCompare;
+    if (m_curPiplineState.depthStateState.depthCompareOp != depthCompare) {
+        m_curPiplineState.depthStateState.depthCompareOp = depthCompare;
         m_updatePiplineState = true;
     }
 }
 
 void VULKAN_DRIVER_INTERFACE::SetStencilTestState(bool stencilTestEnable)
 {
-    if (m_curPiplineState.depthStateS.stencilTestEnable != stencilTestEnable) {
-        m_curPiplineState.depthStateS.stencilTestEnable = stencilTestEnable;
+    if (m_curPiplineState.depthStateState.stencilTestEnable != stencilTestEnable) {
+        m_curPiplineState.depthStateState.stencilTestEnable = stencilTestEnable;
         m_updatePiplineState = true;
     }
 }
@@ -1069,6 +1069,12 @@ void VULKAN_DRIVER_INTERFACE::SetScissorRect(const VkRect2D& scissorRect)
 {
     m_dynamicScissorRect = scissorRect;
     m_isDynamicScissorRectDirty = true;
+}
+
+void VULKAN_DRIVER_INTERFACE::SetDepthBiasParams(float depthBiasConstant, float depthBiasSlope)
+{
+    m_dynamicBiasParams = {depthBiasConstant, depthBiasSlope};
+    m_isDynamicDepthBiasDirty = true;
 }
 
 void VULKAN_DRIVER_INTERFACE::BeginRenderPass()
@@ -1262,6 +1268,12 @@ bool VULKAN_DRIVER_INTERFACE::UpdatePiplineState()
         m_isDynamicScissorRectDirty = false;
     }
 
+    if (m_isDynamicDepthBiasDirty) {
+        //we can't change clamp value dynamically by documentation
+        vkCmdSetDepthBias(m_curCommandBuffer, m_dynamicBiasParams.x, 0.f, m_dynamicBiasParams.y);
+        m_isDynamicDepthBiasDirty = false;
+    }
+
     return true;
 }
 
@@ -1312,20 +1324,20 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
-    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasEnable = piplineState.dynamicFlagsBitset.test(VK_DYNAMIC_STATE_DEPTH_BIAS);
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f; // Optional
+    rasterizer.depthBiasClamp = rasterizer.depthBiasEnable ? DEPTH_BIAS_CLAMP : 0.0f; // Optional
     rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = piplineState.depthStateS.depthTestEnable;
-    depthStencil.depthWriteEnable = piplineState.depthStateS.depthWriteEnable;
-    depthStencil.depthCompareOp = piplineState.depthStateS.depthCompareOp ? VK_COMPARE_OP_LESS : VK_COMPARE_OP_ALWAYS;
+    depthStencil.depthTestEnable = piplineState.depthStateState.depthTestEnable;
+    depthStencil.depthWriteEnable = piplineState.depthStateState.depthWriteEnable;
+    depthStencil.depthCompareOp = piplineState.depthStateState.depthCompareOp ? VK_COMPARE_OP_LESS : VK_COMPARE_OP_ALWAYS;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional
-    depthStencil.stencilTestEnable = piplineState.depthStateS.stencilTestEnable;
+    depthStencil.stencilTestEnable = piplineState.depthStateState.stencilTestEnable;
     depthStencil.front = {}; // Optional
     depthStencil.back = {}; // Optional
 
@@ -1372,13 +1384,15 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
    
-    //todo
     std::vector<VkDynamicState> dynamicStateFlags;
-    for (int stateId = 0; stateId < 8 * sizeof(piplineState.dynamicFlagsMask); stateId++) {
-        if (piplineState.dynamicFlagsMask & 1 << stateId) {
-            dynamicStateFlags.push_back(VkDynamicState(stateId));
+    if (piplineState.dynamicFlagsBitset.any()) {
+        for (int stateId = 0; stateId < piplineState.dynamicFlagsBitset.size(); stateId++) {
+            if(piplineState.dynamicFlagsBitset.test(stateId)) {
+                dynamicStateFlags.push_back(VkDynamicState(stateId));
+            }
         }
     }
+
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -1688,21 +1702,6 @@ VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainImages()
     }
     return result;
 }
-
-// VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainFrameBuffers()
-// {
-//     FRAME_BUFFER_STATE swapChainFrameBufferState;
-//     swapChainFrameBufferState.rtIndex = RT_BACK_BUFFER;
-//     swapChainFrameBufferState.dbIndex = RT_LAST;
-//     swapChainFrameBufferState.pDepthTexture = VK_NULL_HANDLE;
-//     swapChainFrameBufferState.renderPassId = m_defaultRenderPassHashValue;
-//     for (int i = 0; i < NUM_FRAME_BUFFERS; i++) {
-//         swapChainFrameBufferState.pRenderTargetTexture = &m_swapChain.swapChainTexture[i];
-//         CreateFrameBuffer(swapChainFrameBufferState);
-//         m_swapChain.swapChainFramebufferHashValue[i] = m_frameBufferCache.find(swapChainFrameBufferState.GetHashValue())->first;
-//     }
-//     return VK_SUCCESS;
-// }
 
 
 VkResult VULKAN_DRIVER_INTERFACE::InitCommandBuffers()

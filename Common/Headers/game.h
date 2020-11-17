@@ -10,6 +10,7 @@ public:
 
     void GenerateSimpleLevel();
     void GeneratePBRTestLevel();
+    void LoadSponzaLevel();
 };
 
 extern std::unique_ptr<GAME_MANAGER> pGameManager;

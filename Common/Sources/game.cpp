@@ -7,8 +7,9 @@
 #include "gui.h"
 #include "terrain.h"
 
-#include "textureManager.h"
-#include "materialManager.h"
+// #include "textureManager.h"
+// #include "materialManager.h"
+#include "resourceSystem.h"
 #include "gameCameraSystem.h"
 #include "windowSystem.h"
 
@@ -26,6 +27,9 @@ bool GAME_MANAGER::Init()
     if (!pWindowSystem->Init()) {
         return false;
     }
+
+    pResourceSystem.reset(new RESOURCE_SYSTEM());
+    pResourceSystem->Init();
 
     RENDER_SYSTEM* renderSystem = ECS::pEcsCoordinator->CreateSystem<RENDER_SYSTEM>();
     if (!renderSystem->Init()) {
@@ -84,6 +88,7 @@ void GAME_MANAGER::GenerateSimpleLevel()
 }
 
 void GAME_MANAGER::GeneratePBRTestLevel() {
+/*
     const glm::vec3 center = { 0.f, 20.f, 0.f };
 
     gameCamera = ECS::pEcsCoordinator->CreateEntity();
@@ -108,6 +113,7 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
 
     MESH_COMPONENT mesh;
     mesh.pMesh = pMeshManager->GetMeshByName("sphere");
+
     MATERIAL_COMPONENT metalMaterial;
     metalMaterial.pAlbedoTex = pTextureManager->GetTexture("Metal002/Metal002_2K_Color.jpg");
     metalMaterial.pNormalTex = pTextureManager->GetTexture("Metal002/Metal002_2K_Normal.jpg");
@@ -177,11 +183,16 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
 
     const glm::vec2 terrainStartPos = { -128.f, -128.f };
     const glm::vec2 terrainSize = { 256.f, 256.f };
-    ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Init(terrainStartPos, terrainSize);
+    ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Init(terrainStartPos, terrainSize);*/
+}
+
+void GAME_MANAGER::LoadSponzaLevel()
+{
+    pResourceSystem->LoadScene("Sponza");
 }
 
 void GAME_MANAGER::Run() {
-    GeneratePBRTestLevel();
+    LoadSponzaLevel();
 
     while (true)
     {

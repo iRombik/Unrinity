@@ -1,7 +1,7 @@
 #pragma once
 #include "ecsCoordinator.h"
-#include "meshManager.h"
 #include "GLFW/glfw3.h"
+#include "vulkanResourcesDescription.h"
 
 class GUI_SYSTEM : public ECS::SYSTEM<GUI_SYSTEM> {
 public:
@@ -16,8 +16,8 @@ private:
     void EndRenderPass();
 private:
     VULKAN_TEXTURE m_fontTexture;
-    MESH m_mesh;
-    //
+    VULKAN_MESH m_mesh;
+
     bool m_showLights;
     int m_debugRT;
 

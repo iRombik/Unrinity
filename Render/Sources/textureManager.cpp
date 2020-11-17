@@ -161,7 +161,6 @@ void TEXTURE_MANAGER::CreateDefalutTextures()
     createData.extent.depth = 1;
     createData.format = VK_FORMAT_R8G8B8A8_UNORM;
     createData.mipLevels = 1;
-    createData.mipLevelsOffsets.push_back(0);
     createData.usage = VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
     {

@@ -10,55 +10,11 @@
 
 #include "effectData.h"
 #include "renderTargetEnum.h"
+#include "vulkanResourcesDescription.h"
 
 const uint32_t NUM_FRAME_BUFFERS = 2;
 const uint32_t NUM_CONSTANT_BUFFERS = 4;
 const uint32_t NUM_SAMPLERS = 5;
-
-struct VULKAN_BUFFER
-{
-    VULKAN_BUFFER() : bufferSize(0), realBufferSize(0), buffer(), bufferMemory() {}
-    bool operator==(const VULKAN_BUFFER& vkBuf) const {
-        return buffer == vkBuf.buffer;
-    }
-    bool operator!=(const VULKAN_BUFFER& vkBuf) const {
-        return !operator==(vkBuf);
-    }
-
-    size_t   bufferSize;
-    size_t   realBufferSize;
-    VkBuffer buffer;
-    VkDeviceMemory bufferMemory;
-};
-
-struct VULKAN_TEXTURE_CREATE_DATA
-{
-    VULKAN_TEXTURE_CREATE_DATA() : extent{ 0, 0, 0}, mipLevels(0), format(VK_FORMAT_UNDEFINED), usage(VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM), pData(nullptr), dataSize(0) {}
-    VULKAN_TEXTURE_CREATE_DATA(VkFormat _format, VkImageUsageFlagBits _usage, uint32_t _width, uint32_t _height, uint32_t _depth = 1) 
-        : extent{ _width, _height, _depth }, mipLevels(1), format(_format), usage(_usage), pData(nullptr), dataSize(0) {}
-
-    uint8_t* pData;
-    size_t dataSize;
-    VkExtent3D extent;
-    VkFormat format;
-    uint32_t mipLevels;
-    std::vector<size_t> mipLevelsOffsets;
-    VkImageUsageFlagBits usage;
-};
-
-struct VULKAN_TEXTURE
-{
-    VULKAN_TEXTURE () : width(0), height(0), format(VK_FORMAT_UNDEFINED), mipLevels(0), image(VK_NULL_HANDLE), imageMemory(VK_NULL_HANDLE), imageView(VK_NULL_HANDLE) {}
-
-    uint32_t width;
-    uint32_t height;
-    VkFormat format;
-    uint8_t mipLevels;
-
-    VkImage image;
-    VkImageView imageView;
-    VkDeviceMemory imageMemory;
-};
 
 struct QUEUE_FAMILIES {
     struct QUEUE_FAMILY_CREATE_PARAMS {
@@ -89,8 +45,6 @@ struct SWAP_CHAIN {
 
     SWAP_CHAIN_CREATE_PARAMS createParams;
     VkSwapchainKHR swapChain;
-//     std::array<VULKAN_TEXTURE, NUM_FRAME_BUFFERS> swapChainTexture;
-//     std::array<size_t, NUM_FRAME_BUFFERS>         swapChainFramebufferHashValue;
     uint32_t curSwapChainImageId;
 };
 
@@ -180,20 +134,20 @@ struct DEPTH_STATE {
 struct PIPLINE_STATE {
     uint8_t vertexFormatId;
     uint8_t shaderId;
-    uint8_t dynamicFlagsMask;
+    std::bitset<8> dynamicFlagsBitset;
     uint32_t viewportWidth;
     uint32_t viewportHeight;
     union
     {
-        DEPTH_STATE depthStateS;
-        uint8_t     depthStateU;
+        DEPTH_STATE depthStateState;
+        uint8_t     depthStateMask;
     };
     size_t  piplineLayoutId;
     size_t  renderPassId;
 
     size_t GetHashValue() const {
         size_t seed = 0;
-        hash_combine(seed, vertexFormatId, shaderId, dynamicFlagsMask, depthStateU, piplineLayoutId);
+        hash_combine(seed, vertexFormatId, shaderId, dynamicFlagsBitset.to_ulong(), depthStateMask, piplineLayoutId);
         hash_combine(seed, viewportWidth, viewportHeight);
         return seed;
     }
@@ -235,6 +189,7 @@ public:
     void SetDepthComparitionOperation(bool depthCompare);
     void SetStencilTestState(bool stencilTestEnable);
     void SetScissorRect(const VkRect2D& scissorRect);
+    void SetDepthBiasParams(float depthBiasConstant, float depthBiasSlope);
     
     void BeginRenderPass();
     void EndRenderPass();
@@ -367,8 +322,11 @@ private:
 
     uint32_t                                       m_pushConstantBufferDirtySize;
     std::array<uint8_t, 128>                       m_pushConstantBuffer;
-    bool                                           m_isDynamicScissorRectDirty;
     VkRect2D                                       m_dynamicScissorRect;
+    glm::vec2                                      m_dynamicBiasParams;
+
+    bool                                           m_isDynamicDepthBiasDirty;
+    bool                                           m_isDynamicScissorRectDirty;
 
     std::array<VkDescriptorPool, NUM_FRAME_BUFFERS>                 m_descriptorPool;
     std::array<VkDescriptorSetLayout, EFFECT_DATA::SHR_LAST>        m_descriptorSetLayout;

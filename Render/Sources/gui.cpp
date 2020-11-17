@@ -515,7 +515,11 @@ void GUI_SYSTEM::DescribeInterface()
         ImGui::SliderFloat("Area light", &lightComponent->areaLight, 50.0f, 200.0f);
         ImGui::ColorEdit3("Color", (float*)&lightComponent->color);
     }
-
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("Dynamic SM depth bias")) {
+        ImGui::SliderFloat("Constant", &DEPTH_BIAS_PARAMS.x, 0.0f, 10.0f);
+        ImGui::SliderFloat("Slope", &DEPTH_BIAS_PARAMS.y, 0.0f, 10.0f);
+    }
     ImGui::Separator();
     ImGui::Combo("RT debug view", &m_debugRT, RENDER_TARGET_NAME, RENDER_TARGET::RT_LAST + 1);
     if (m_debugRT != RT_LAST) {

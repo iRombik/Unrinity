@@ -102,6 +102,9 @@
     <ClInclude Include="Headers\visibilitySystem.h">
       <Filter>RenderPasses</Filter>
     </ClInclude>
+    <ClInclude Include="Headers\vulkanResourcesDescription.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Sources\geometry.cpp">

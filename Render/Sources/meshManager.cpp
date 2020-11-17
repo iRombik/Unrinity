@@ -214,19 +214,20 @@ void MESH_MANAGER::LoadCommonMeshes()
 {
     LoadMesh("cube");
     LoadMesh("sphere");
+
 }
 
 bool MESH_MANAGER::LoadMesh(const std::string& meshName)
 {
-    const std::string meshPath = GetMeshPath(meshName);
+    const std::string meshPath = GetOBJMeshPath(meshName);
     const RAW_MESH* pRawMesh = m_meshLoader->LoadMesh(meshPath);
 
     if (!pRawMesh) {
-        WARNING_MSG(formatString("Mesh %s wan't loaded", meshName.c_str()).c_str());
+        WARNING_MSG(formatString("Mesh %s wasn't loaded", meshName.c_str()).c_str());
         return false;
     }
 
-    MESH resultMesh;
+    VULKAN_MESH resultMesh;
 
     resultMesh.vertexFormatId = SIMPLE_VERTEX::formatId;
     resultMesh.numOfVertexes = (uint32_t)pRawMesh->vertexes.size();
@@ -268,7 +269,7 @@ void MESH_MANAGER::Term()
     }
 }
 
-MESH* MESH_MANAGER::GetMeshByName(const std::string& meshName)
+VULKAN_MESH* MESH_MANAGER::GetMeshByName(const std::string& meshName)
 {
     auto iter = m_meshesMap.find(meshName);
     if (iter == m_meshesMap.end()) {
@@ -281,12 +282,17 @@ MESH* MESH_MANAGER::GetMeshByName(const std::string& meshName)
     return &iter->second;
 }
 
-std::string MESH_MANAGER::GetMeshPath(const std::string& meshName)
+std::string MESH_MANAGER::GetOBJMeshPath(const std::string& meshName)
 {
-    return MESH_DIR + meshName + "/" + meshName + MESH_EXT;
+    return OBJ_MESH_DIR + meshName + "/" + meshName + OBJ_MESH_EXT;
 }
 
-void MESH_MANAGER::DestroyMesh (MESH& mesh) const {
+std::string MESH_MANAGER::GetGLTFMeshPath(const std::string& meshName)
+{
+    return GLTF_MESH_DIR + meshName + "/glTF/" + meshName + GLTF_MESH_EXT;
+}
+
+void MESH_MANAGER::DestroyMesh (VULKAN_MESH& mesh) const {
     pDrvInterface->DestroyBuffer(mesh.vertexBuffer);
     pDrvInterface->DestroyBuffer(mesh.indexBuffer);
 }

@@ -44,6 +44,7 @@
     <ClInclude Include="Headers\textureManager.h" />
     <ClInclude Include="Headers\visibilitySystem.h" />
     <ClInclude Include="Headers\vulkanDriver.h" />
+    <ClInclude Include="Headers\vulkanResourcesDescription.h" />
     <ClInclude Include="Headers\windowSystem.h" />
   </ItemGroup>
   <ItemGroup>
@@ -189,7 +190,7 @@
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Libs\gli\gli;C:\VulkanSDK\1.2.131.1\Include;$(SolutionDir)Libs\glfw\include;$(SolutionDir)ECS\Headers;$(SolutionDir)Render\Headers;$(SolutionDir)Libs\glm;$(SolutionDir)Libs\imgui;$(SolutionDir)Libs\DXC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Libs\gli\gli;C:\VulkanSDK\1.2.131.1\Include;$(SolutionDir)Libs\glfw\include;$(SolutionDir)ECS\Headers;$(SolutionDir)Render\Headers;$(SolutionDir)Libs\glm;$(SolutionDir)Libs\imgui;$(SolutionDir)Libs\DXC\include;$(SolutionDir)Libs\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>

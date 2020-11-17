@@ -52,11 +52,10 @@ void RENDER_PASS_SHADOW::Render()
     pDrvInterface->SetDepthWriteState(true);
     pDrvInterface->SetDepthComparitionOperation(true);
     pDrvInterface->SetStencilTestState(false);
+    pDrvInterface->SetDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS, true);
+    pDrvInterface->SetDepthBiasParams(DEPTH_BIAS_PARAMS.x, DEPTH_BIAS_PARAMS.y);
 
     EFFECT_DATA::CB_LIGHTS_STRUCT lightBufferData;
-//     lightBufferData.dirLightTransform = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
-//     lightBufferData.pointLight0Transform = *ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
-
     lightBufferData.dirLightViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(directionalLight)->viewProjMatrix;
     lightBufferData.pointLight0ViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0])->viewProjMatrix;
 

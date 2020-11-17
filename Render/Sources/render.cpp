@@ -23,6 +23,9 @@
 #include "renderPassResolve.h"
 #include "renderPassShadow.h"
 
+glm::vec3 COMMON_AMBIENT = glm::vec3(0.2f);
+glm::vec2 DEPTH_BIAS_PARAMS = glm::vec2(1.25f, 1.65f);
+
 ECS::ENTITY_TYPE gameCamera = ECS::INVALID_ENTITY_ID;
 std::vector<ECS::ENTITY_TYPE> pointLights;
 ECS::ENTITY_TYPE directionalLight = ECS::INVALID_ENTITY_ID;
@@ -30,17 +33,13 @@ ECS::ENTITY_TYPE directionalLight = ECS::INVALID_ENTITY_ID;
 bool RENDER_SYSTEM::Init()
 {
     pDrvInterface.reset(new VULKAN_DRIVER_INTERFACE());
-    pResourceSystem.reset(new RESOURCE_SYSTEM());
     pRenderTargetManager.reset(new RENDER_TARGET_MANAGER());
-    pVertexDeclarationManager.reset(new VERTEX_DECLARATION_MANAGER());
 
     bool isDriverInited = pDrvInterface->Init();
     if (!isDriverInited) {
         ERROR_MSG("Driver creation failed!");
         return false;
     }
-    pVertexDeclarationManager->Init();
-    pResourceSystem->Init();
 
     if (pDrvInterface->InitPipelineState() != VK_SUCCESS) {
         return false;

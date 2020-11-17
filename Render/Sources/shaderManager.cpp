@@ -100,10 +100,11 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
     std::vector<std::wstring> commandLineParams;
     //compile spir-v
     commandLineParams.push_back(L" -spirv");
-#ifdef OUT_DEBUG_INFO
-    //for render doc pixel debugging
-    commandLineParams.push_back(L"-fspv-extension=SPV_GOOGLE_user_type");
-#endif
+    commandLineParams.push_back(L"-Zi");
+// #ifdef OUT_DEBUG_INFO
+//     //for render doc pixel debugging
+//     commandLineParams.push_back(L"-fspv-extension=SPV_GOOGLE_user_type");
+// #endif
     //file
     const std::wstring path = absolutePath + shaderName + typeName + L".fx";
     commandLineParams.push_back(std::wstring(path.begin(), path.end()));
