@@ -3,8 +3,7 @@
 [[vk::binding(16)]] Texture2D texAlbedo;
 [[vk::binding(17)]] Texture2D texNormal;
 [[vk::binding(18)]] Texture2D texDisplacement;
-[[vk::binding(19)]] Texture2D texRoughness;
-[[vk::binding(20)]] Texture2D texMetalness;
+[[vk::binding(19)]] Texture2D texMetalRoughness;
 
 //http://www.thetenthplanet.de/archives/1180
 float3x3 CalculateTBN(float3 pos, float3 N, float2 uv, inout float3 T, inout float3 B) {
@@ -76,19 +75,11 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
 }
 
 void main(in VERTEX_OUTPUT vertexOut, out PIXEL_OUTPUT pixelOut) {
-#ifdef USE_MATERIALS
     float4 albedo = texAlbedo.Sample(anisoSampler, vertexOut.texCoord);
     float3 normal = texNormal.Sample(anisoSampler, vertexOut.texCoord).rgb;
     float displacement = texDisplacement.Sample(anisoSampler, vertexOut.texCoord).r;
-    float roughness = texRoughness.Sample(anisoSampler, vertexOut.texCoord).r;
-    float3 metalness = texMetalness.Sample(anisoSampler, vertexOut.texCoord).rrr;
-#else
-    float4 albedo = 0.8f;
-    float3 normal = float3(0.5f, 0.5f, 1.f);
-    float displacement = 0.f;
-    float roughness = max(materialDbgRoughness, 0.03f);
-    float3 metalness = materialDbgMetalness;
-#endif
+    float roughness = texMetalRoughness.Sample(anisoSampler, vertexOut.texCoord).r;
+    float3 metalness = texMetalRoughness.Sample(anisoSampler, vertexOut.texCoord).bbb;
 
     float3 normalDecompressed = normalize(normal * 2.f - 1.f);
     float3 worldNormal = normalize(vertexOut.worldNormal);

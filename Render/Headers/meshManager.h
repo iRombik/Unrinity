@@ -10,25 +10,6 @@ class GLTF_LOADER;
 class MESH_MANAGER;
 struct VULKAN_MESH;
 
-struct MESH_COMPONENT : public ECS::COMPONENT<VULKAN_MESH>
-{
-    const VULKAN_MESH* pMesh;
-};
-
-struct NODE_COMPONENT : public ECS::COMPONENT<NODE_COMPONENT>
-{
-    NODE_COMPONENT* pParent;
-    std::vector<NODE_COMPONENT*> pChildren;
-
-    glm::mat4x4 transofmMatrix;
-    MESH_COMPONENT* pMeshComponent;
-};
-
-struct MODEL_COMPONENT : public ECS::COMPONENT<MODEL_COMPONENT>
-{
-    std::vector<NODE_COMPONENT> nodes;
-};
-
 class MESH_MANAGER {
 public:
     MESH_MANAGER();

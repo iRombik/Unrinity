@@ -52,6 +52,6 @@ struct VULKAN_MESH
     uint8_t vertexFormatId;
     VULKAN_BUFFER vertexBuffer;
     VULKAN_BUFFER indexBuffer;
-    uint32_t numOfVertexes;
-    uint32_t numOfIndexes;
+    size_t numOfVertexes;
+    size_t numOfIndexes;
 };

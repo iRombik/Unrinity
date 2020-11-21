@@ -35,8 +35,6 @@ cbuffer LIGHT_BUFFER : register (b1) {
 
 [[vk::binding(3)]]
 cbuffer MATERIAL_BUFFER : register (b3) {
-    float3 materialDbgMetalness;
-    float  materialDbgRoughness;
 };
 
 //common textures

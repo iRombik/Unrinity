@@ -8,14 +8,13 @@
 #include "Components/transformation.h"
 #include "Events/debug.h"
 
-#include "materialManager.h"
-#include "meshManager.h"
+#include "resourceSystem.h"
 #include "renderTargetManager.h"
 
 void RENDER_PASS_OPAQUE::Init()
 {
     ECS::pEcsCoordinator->SubscrubeSystemToComponentType<VISIBLE_COMPONENT>(this);
-    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
+    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_PRIMITIVE>(this);
 }
 
 void RENDER_PASS_OPAQUE::BeginRenderPass()
@@ -58,49 +57,49 @@ void RENDER_PASS_OPAQUE::Render()
     lightBufferData.pointLight0ViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0])->viewProjMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_LIGHTS, &lightBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_LIGHTS]);
 
-    for (auto& rendEntity : m_entityList) {
+    for (auto rendEntity : m_entityList) {
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
 
-        const CUSTOM_MATERIAL_COMPONENT* customMaterialParams = ECS::pEcsCoordinator->GetComponent<CUSTOM_MATERIAL_COMPONENT>(rendEntity);
-        if (customMaterialParams) {
-            EFFECT_DATA::CB_MATERIAL_STRUCT material;
-            material.metalness = customMaterialParams->customMetalness;
-            material.roughness = customMaterialParams->customRoughness;
-            pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_MATERIAL, &material, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_MATERIAL]);
-            pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_MATERIAL);
-        }
-
         glm::mat4x4 worldTransformMatrix(1.f);
-        const ROTATE_COMPONENT* rotate = ECS::pEcsCoordinator->GetComponent<ROTATE_COMPONENT>(rendEntity);
-        if (rotate) {
-            worldTransformMatrix = glm::mat4_cast(rotate->quaternion);
-        }
+//         const ROTATE_COMPONENT* rotate = ECS::pEcsCoordinator->GetComponent<ROTATE_COMPONENT>(rendEntity);
+//         if (rotate) {
+//             worldTransformMatrix = glm::mat4_cast(rotate->quaternion);
+//         }
+// 
+//         const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(rendEntity);
+//         if (transform) {
+//             worldTransformMatrix = glm::translate(worldTransformMatrix, transform->position);
+//         }
 
-        const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(rendEntity);
-        if (transform) {
-            worldTransformMatrix = glm::translate(worldTransformMatrix, transform->position);
-        }
+        const MESH_PRIMITIVE* pMeshPrimitive = ECS::pEcsCoordinator->GetComponent<MESH_PRIMITIVE>(rendEntity);
+        const NODE_COMPONENT* pNode = pMeshPrimitive->pParentHolder->pParentsNodes[0];
+        //worldTransformMatrix = pNode->matrix;
+        worldTransformMatrix = glm::mat4_cast(pNode->rotation);
+        worldTransformMatrix = glm::translate(worldTransformMatrix, pNode->translation);
         pDrvInterface->FillPushConstantBuffer(&worldTransformMatrix, sizeof(worldTransformMatrix));
 
-        const MATERIAL_COMPONENT* material = ECS::pEcsCoordinator->GetComponent<MATERIAL_COMPONENT>(rendEntity);
+        const MATERIAL_COMPONENT* material = pMeshPrimitive->pMaterial;
         if (material) {
             pDrvInterface->SetTexture(material->pAlbedoTex, 16);
             pDrvInterface->SetTexture(material->pNormalTex, 17);
             pDrvInterface->SetTexture(material->pDisplacementTex, 18);
-            pDrvInterface->SetTexture(material->pRoughnessTex, 19);
-            pDrvInterface->SetTexture(material->pMetalnessTex, 20);
+            pDrvInterface->SetTexture(material->pMetalRoughnessTex, 19);
         } else {
-            for (int slot = 16; slot <= 20; slot++) {
+            for (int slot = 16; slot <= 19; slot++) {
                 pDrvInterface->SetTexture(nullptr, slot);
             }
         }
 
-        const MESH_COMPONENT* mesh = ECS::pEcsCoordinator->GetComponent<MESH_COMPONENT>(rendEntity);
-        pDrvInterface->SetVertexFormat(mesh->pMesh->vertexFormatId);
-        pDrvInterface->SetVertexBuffer(mesh->pMesh->vertexBuffer, 0);
-        pDrvInterface->SetIndexBuffer(mesh->pMesh->indexBuffer, 0);
-        pDrvInterface->DrawIndexed(mesh->pMesh->numOfIndexes);
+        const VULKAN_MESH* pMesh = pMeshPrimitive->pMesh;
+        pDrvInterface->SetVertexFormat(pMesh->vertexFormatId);
+        pDrvInterface->SetVertexBuffer(pMesh->vertexBuffer, 0);
+        pDrvInterface->SetIndexBuffer(pMesh->indexBuffer, 0);
+        if (pMesh->numOfIndexes == 0) {
+            pDrvInterface->Draw(pMesh->numOfVertexes);
+        } else {
+            pDrvInterface->DrawIndexed(pMesh->numOfIndexes);
+        }
     }
     EndRenderPass();
 }

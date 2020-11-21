@@ -465,34 +465,15 @@ void GUI_SYSTEM::DescribeInterface()
     
     bool isButtonStateChanged = ImGui::Checkbox("Show lights", &m_showLights);
     if (isButtonStateChanged) {
-        MESH_COMPONENT lightDebugMesh;
-        lightDebugMesh.pMesh = pMeshManager->GetMeshByName("sphere");
-        MATERIAL_COMPONENT redMaterial;
-        redMaterial.pAlbedoTex = pTextureManager->GetDefaultTexture(DEFAULT_RED_TEXTURE);
-        redMaterial.pNormalTex = pTextureManager->GetDefaultTexture(DEFAULT_INVERTED_NORMAL_TEXTURE);
-        redMaterial.pDisplacementTex = pTextureManager->GetDefaultTexture(DEFAULT_BLACK_TEXTURE);
-        redMaterial.pRoughnessTex = pTextureManager->GetDefaultTexture(DEFAULT_RED_TEXTURE);
-        redMaterial.pMetalnessTex = pTextureManager->GetDefaultTexture(DEFAULT_BLACK_TEXTURE);
-
-        if (m_showLights) {
-            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, lightDebugMesh);
-            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, redMaterial);
-            ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, RENDERED_COMPONENT());
-        } else {
-            ECS::pEcsCoordinator->RemoveComponentFromEntity<RENDERED_COMPONENT>(directionalLight);
-            ECS::pEcsCoordinator->RemoveComponentFromEntity<MESH_COMPONENT>(directionalLight);
-            ECS::pEcsCoordinator->RemoveComponentFromEntity<MATERIAL_COMPONENT>(directionalLight);
-        }
-
         for (auto light : pointLights) {
             if (m_showLights) {
-                ECS::pEcsCoordinator->AddComponentToEntity(light, lightDebugMesh);
-                ECS::pEcsCoordinator->AddComponentToEntity(light, redMaterial);
+                //ECS::pEcsCoordinator->AddComponentToEntity(light, lightDebugMesh);
+                //ECS::pEcsCoordinator->AddComponentToEntity(light, redMaterial);
                 ECS::pEcsCoordinator->AddComponentToEntity(light, RENDERED_COMPONENT());
             } else {
                 ECS::pEcsCoordinator->RemoveComponentFromEntity<RENDERED_COMPONENT>(light);
-                ECS::pEcsCoordinator->RemoveComponentFromEntity<MESH_COMPONENT>(light);
-                ECS::pEcsCoordinator->RemoveComponentFromEntity<MATERIAL_COMPONENT>(light);
+                //ECS::pEcsCoordinator->RemoveComponentFromEntity<MESH_COMPONENT>(light);
+                //ECS::pEcsCoordinator->RemoveComponentFromEntity<MATERIAL_COMPONENT>(light);
             }
         }
     }
@@ -528,10 +509,8 @@ void GUI_SYSTEM::DescribeInterface()
     }
 
     if (ImGui::Button("Rebuild shader cache")) {
+        //pResourceSystem->ReloadShaders();
     }
-
-//     bool a = true;
-//     ImGui::ShowDemoWindow(&a);
     ImGui::End();
 }
 

@@ -40,17 +40,19 @@ public:
                 }
                 const glm::vec3 sidewayVector = glm::cross(UP_VECTOR, dirLookAt);
 
+                const float cameraMovementSpeed = 10.f;
+
                 if (keyInput.isButtonPressed[0]) {
-                    cameraPos->position += 0.1f * dirLookAt;
+                    cameraPos->position += cameraMovementSpeed * dirLookAt;
                 }
                 if (keyInput.isButtonPressed[2]) {
-                    cameraPos->position -= 0.1f * dirLookAt;
+                    cameraPos->position -= cameraMovementSpeed * dirLookAt;
                 }
                 if (keyInput.isButtonPressed[1]) {
-                    cameraPos->position -= 0.1f * sidewayVector;
+                    cameraPos->position -= cameraMovementSpeed * sidewayVector;
                 }
                 if (keyInput.isButtonPressed[3]) {
-                    cameraPos->position += 0.1f * sidewayVector;
+                    cameraPos->position += cameraMovementSpeed * sidewayVector;
                 }
             }
 

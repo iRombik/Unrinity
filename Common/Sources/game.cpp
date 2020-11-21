@@ -35,6 +35,7 @@ bool GAME_MANAGER::Init()
     if (!renderSystem->Init()) {
         return false;
     }
+    pResourceSystem->LoadShaders();
 
     GUI_SYSTEM* guiSystem = ECS::pEcsCoordinator->CreateSystem<GUI_SYSTEM>();
     if (!guiSystem->Init()) {
@@ -188,7 +189,71 @@ void GAME_MANAGER::GeneratePBRTestLevel() {
 
 void GAME_MANAGER::LoadSponzaLevel()
 {
-    pResourceSystem->LoadScene("Sponza");
+    const glm::vec3 center = { 0.f, 20.f, 0.f };
+
+    gameCamera = ECS::pEcsCoordinator->CreateEntity();
+    CAMERA_COMPONENT camera;
+    camera.fov = 120.f;
+    camera.aspectRatio = 16.f / 9.f;
+    camera.nearPlane = 1.f;
+    camera.farPlane = 10256.f;
+    camera.viewProjMatrix = {
+        {1.f, 0.f, 0.f, 0.f},
+        {0.f, 1.f, 0.f, 0.f},
+        {0.f, 0.f, 1.f, 0.f},
+        {0.f, 0.f, 0.f, 1.f}
+    };
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, std::move(camera));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, TRANSFORM_COMPONENT(center + glm::vec3(-35.f, 0.f, 0.f)));
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, ROTATE_COMPONENT());
+    ECS::pEcsCoordinator->AddComponentToEntity(gameCamera, INPUT_CONTROLLED());
+
+    GAME_CAMERA_CONROL* pCameraSystem = ECS::pEcsCoordinator->CreateSystem<GAME_CAMERA_CONROL>();
+    pCameraSystem->Init();
+
+    {
+        ECS::ENTITY_TYPE lightEntity = ECS::pEcsCoordinator->CreateEntity();
+        POINT_LIGHT_COMPONENT light;
+        light.color = glm::vec3(1.f);
+        light.areaLight = 100.0f;
+        light.intensity = 3.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, light);
+
+        TRANSFORM_COMPONENT transform;
+        transform.position = center + glm::vec3(-30.f, 0.f, 0.f);
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, transform);
+
+        CAMERA_COMPONENT lightCamera;
+        lightCamera.aspectRatio = 1.f;
+        lightCamera.nearPlane = 0.1;
+        lightCamera.farPlane = 100.f;
+        lightCamera.fov = 140.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, lightCamera);
+
+        pointLights.push_back(lightEntity);
+    }
+
+    {
+        directionalLight = ECS::pEcsCoordinator->CreateEntity();
+        DIRECTIONAL_LIGHT_COMPONENT light;
+        light.color = glm::vec3(1.f);
+        light.attenuationParam = 0.005f;
+        light.intensity = 3.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, light);
+
+        TRANSFORM_COMPONENT transform;
+        transform.position = center + glm::vec3(15.f, 30.f, 0.f);
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, transform);
+
+        CAMERA_COMPONENT lightCamera;
+        lightCamera.aspectRatio = 1.f;
+        lightCamera.nearPlane = 0.1;
+        lightCamera.farPlane = 100.f;
+        lightCamera.fov = 140.f;
+        ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, lightCamera);
+    }
+
+    pResourceSystem->LoadModel("Sponza");
 }
 
 void GAME_MANAGER::Run() {

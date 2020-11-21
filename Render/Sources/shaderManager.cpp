@@ -59,7 +59,6 @@ void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(18, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(19, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
 

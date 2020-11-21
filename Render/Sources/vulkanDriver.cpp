@@ -920,14 +920,18 @@ void VULKAN_DRIVER_INTERFACE::SetTexture(const VULKAN_TEXTURE* texture, uint32_t
 //     }
 
     m_updateDescriptorSet = true;
-    m_curTextureState[slot] = texture->imageView;
+    if (texture == nullptr) {
+        m_curTextureState[slot] = nullptr;
+    } else {
+        m_curTextureState[slot] = texture->imageView;
 
-    std::pair<uint8_t, VkDescriptorImageInfo> imageInfo;
-    imageInfo.first = slot;
-    imageInfo.second.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.second.imageView = texture->imageView;
-    imageInfo.second.sampler = nullptr;
-    m_curPassImageDescriptors.push_back(imageInfo);
+        std::pair<uint8_t, VkDescriptorImageInfo> imageInfo;
+        imageInfo.first = slot;
+        imageInfo.second.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.second.imageView = texture->imageView;
+        imageInfo.second.sampler = nullptr;
+        m_curPassImageDescriptors.push_back(imageInfo);
+    }
 }
 
 void VULKAN_DRIVER_INTERFACE::SetShader(uint8_t shaderId)
@@ -1147,7 +1151,7 @@ void VULKAN_DRIVER_INTERFACE::Draw(uint32_t vertexesNum)
     }
 }
 
-void VULKAN_DRIVER_INTERFACE::DrawIndexed(uint32_t indexesNum, uint32_t vertexBufferOffset, uint32_t indexBufferOffset)
+void VULKAN_DRIVER_INTERFACE::DrawIndexed(size_t indexesNum, size_t vertexBufferOffset, size_t indexBufferOffset)
 {
     const bool stateUpdated = UpdatePiplineState();
     if (stateUpdated) {

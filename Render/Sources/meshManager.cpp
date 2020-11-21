@@ -230,8 +230,8 @@ bool MESH_MANAGER::LoadMesh(const std::string& meshName)
     VULKAN_MESH resultMesh;
 
     resultMesh.vertexFormatId = SIMPLE_VERTEX::formatId;
-    resultMesh.numOfVertexes = (uint32_t)pRawMesh->vertexes.size();
-    resultMesh.numOfIndexes = (uint32_t)pRawMesh->indexes.size();
+    resultMesh.numOfVertexes = pRawMesh->vertexes.size();
+    resultMesh.numOfIndexes = pRawMesh->indexes.size();
 
     VkBufferCreateInfo vertexBufferInfo = {};
     vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

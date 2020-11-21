@@ -5,10 +5,10 @@
 
 struct VULKAN_TEXTURE;
 
-struct MATERIAL_COMPONENT : ECS::COMPONENT<MATERIAL_COMPONENT> 
+struct MATERIAL_COMPONENT : public ECS::COMPONENT<MATERIAL_COMPONENT>
 {
-    MATERIAL_COMPONENT() : pAlbedoTex(nullptr), pNormalTex(nullptr), pDisplacementTex(nullptr), pRoughnessTex(nullptr), pMetalnessTex(nullptr), pEmissiveTex(nullptr),
-    alphaMode(ALPHA_MODE::ALPHA_OPAQUE), alphaCutFactor(1.f) {}
+    MATERIAL_COMPONENT() : pAlbedoTex(nullptr), pNormalTex(nullptr), pDisplacementTex(nullptr), pMetalRoughnessTex(nullptr), pEmissiveTex(nullptr),
+    isDoubleSided(false), alphaMode(ALPHA_MODE::ALPHA_OPAQUE), alphaCutFactor(1.f), baseColor(0.f) {}
 
     enum class ALPHA_MODE { ALPHA_OPAQUE, ALPHA_BLEND, ALPHA_MASK };
 
@@ -19,20 +19,9 @@ struct MATERIAL_COMPONENT : ECS::COMPONENT<MATERIAL_COMPONENT>
 
     const VULKAN_TEXTURE* pAlbedoTex;
     const VULKAN_TEXTURE* pNormalTex;
+    const VULKAN_TEXTURE* pMetalRoughnessTex;
+    //const VULKAN_TEXTURE* pRoughnessTex;
+    //const VULKAN_TEXTURE* pMetalnessTex;
     const VULKAN_TEXTURE* pDisplacementTex;
-    const VULKAN_TEXTURE* pRoughnessTex;
-    const VULKAN_TEXTURE* pMetalnessTex;
     const VULKAN_TEXTURE* pEmissiveTex;
-};
-
-struct CUSTOM_MATERIAL_COMPONENT : ECS::COMPONENT<CUSTOM_MATERIAL_COMPONENT>
-{
-    glm::vec3 customMetalness;
-    float     customRoughness;
-};
-
-class MATERIAL_MANAGER
-{
-    void CreateMaterial();
-    void SetupMaterial();
 };

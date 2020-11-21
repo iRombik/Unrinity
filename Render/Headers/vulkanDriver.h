@@ -196,7 +196,7 @@ public:
     void ChangeTextureLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VULKAN_TEXTURE& texture);
 
     void Draw(uint32_t vertexesNum);
-    void DrawIndexed(uint32_t indexesNum, uint32_t vertexBufferOffset = 0, uint32_t indexBufferOffset = 0);
+    void DrawIndexed(size_t indexesNum, size_t vertexBufferOffset = 0, size_t indexBufferOffset = 0);
     void DrawFullscreen();
 
     uint32_t GetMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);

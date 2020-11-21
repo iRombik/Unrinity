@@ -58,16 +58,16 @@ bool RENDER_SYSTEM::Init()
 void RENDER_SYSTEM::Update()
 {
     ECS::pEcsCoordinator->GetSystem <VISIBILITY_SYSTEM>()->Update();
-    ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Update();
+    //ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Update();
 }
 
 void RENDER_SYSTEM::Render()
 {
     pDrvInterface->StartFrame(0.f);
 
-    ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Render();
+    //ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_OPAQUE>()->Render();
-    ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Render();
+    //ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_RESOLVE>()->Render();
     ECS::pEcsCoordinator->GetSystem<GUI_SYSTEM>()->Render();
 

@@ -13,7 +13,7 @@
 void RENDER_PASS_SHADOW::Init()
 {
     ECS::pEcsCoordinator->SubscrubeSystemToComponentType<RENDERED_COMPONENT>(this);
-    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
+    //ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
 }
 
 void RENDER_PASS_SHADOW::Update()
@@ -76,11 +76,11 @@ void RENDER_PASS_SHADOW::Render()
         }
         pDrvInterface->FillPushConstantBuffer(&worldTransformMatrix, sizeof(worldTransformMatrix));
 
-        const MESH_COMPONENT* mesh = ECS::pEcsCoordinator->GetComponent<MESH_COMPONENT>(rendEntity);
-        pDrvInterface->SetVertexFormat(mesh->pMesh->vertexFormatId);
-        pDrvInterface->SetVertexBuffer(mesh->pMesh->vertexBuffer, 0);
-        pDrvInterface->SetIndexBuffer(mesh->pMesh->indexBuffer, 0);
-        pDrvInterface->DrawIndexed(mesh->pMesh->numOfIndexes);
+//         const MESH_COMPONENT* mesh = ECS::pEcsCoordinator->GetComponent<MESH_COMPONENT>(rendEntity);
+//         pDrvInterface->SetVertexFormat(mesh->pMesh->vertexFormatId);
+//         pDrvInterface->SetVertexBuffer(mesh->pMesh->vertexBuffer, 0);
+//         pDrvInterface->SetIndexBuffer(mesh->pMesh->indexBuffer, 0);
+//         pDrvInterface->DrawIndexed(mesh->pMesh->numOfIndexes);
     }
 
     EndRenderPass();
