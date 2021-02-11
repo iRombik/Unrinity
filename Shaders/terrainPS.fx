@@ -3,6 +3,5 @@
 #include "terrainCommon.fx"
 
 void main(in VERTEX_OUTPUT vertexOut, out float4 outColor : SV_Target) {
-    float shadowFactor = ShadowFactorPCF(vertexOut.worldPos);
-    outColor = shadowFactor;
+    outColor = float4(0.f, 1.f, 0.f, 1.f);
 }

@@ -8,7 +8,6 @@
 #include "effectData.h"
 //TODO: remove form here. create pso in resource system 
 #include "shaderManager.h"
-#include <renderTargetManager.h>
 
 #include <algorithm>
 #include <set>
@@ -36,7 +35,7 @@ bool VULKAN_DRIVER_INTERFACE::Init()
     if (m_enableValidationLayer) {
         SAFE_FUNC_WRAPPER(InitDebugMessenger, "Init debug messager error!");
     }
-    SAFE_FUNC_WRAPPER(InitSurface, "Init surface error!");
+    SAFE_FUNC_WRAPPER(InitWindowSurface, "Init surface error!");
     SAFE_FUNC_WRAPPER(InitPhysicalDevice, "Physical device select error! Cant find sutable GPU.");
     SAFE_FUNC_WRAPPER(InitLogicalDevice, "Logical device init error!");
     SAFE_FUNC_WRAPPER(InitSwapChain, "Initialization of swap chain failed!");
@@ -194,7 +193,7 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateAndFillBuffer(const VkBufferCreateInfo& 
     return result;
 }
 
-size_t VULKAN_DRIVER_INTERFACE::GetDeviceCoherentValue (size_t bufferSize) const
+uint32_t VULKAN_DRIVER_INTERFACE::GetDeviceCoherentValue (uint32_t bufferSize) const
 {
     return(bufferSize + m_deviceProperties.limits.nonCoherentAtomSize - 1) & ~(m_deviceProperties.limits.nonCoherentAtomSize - 1);
 }
@@ -629,31 +628,41 @@ VkResult VULKAN_DRIVER_INTERFACE::CreatePiplineLayout(const PIPLINE_LAYOUT_STATE
 
 VkResult VULKAN_DRIVER_INTERFACE::CreateRenderPass(const RENDER_PASS_STATE& renderPassState)
 {
+    //init subpass
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    std::vector< VkAttachmentDescription> attachmentsDesc;
-
     uint32_t attachmentId = 0;
-    VkAttachmentReference colorAttachmentRef = {};
+    std::vector<VkAttachmentReference> colorAttachmentRef;
     VkAttachmentReference depthAttachmentRef = {};
+    for (int i = 0; i < MAX_RENDER_TARGETS; i++) {
+        if (renderPassState.useRT.test(i)) {
+            VkAttachmentReference attachmentRef;
+            attachmentRef.attachment = attachmentId++;
+            attachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    if (renderPassState.useRT) {
-        colorAttachmentRef.attachment = attachmentId++;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-
-        attachmentsDesc.push_back(renderPassState.rtAttachDesc);
+            colorAttachmentRef.push_back(attachmentRef);
+        }
     }
+    subpass.colorAttachmentCount = colorAttachmentRef.size();
+    subpass.pColorAttachments = colorAttachmentRef.data();
 
     if (renderPassState.useDB) {
         depthAttachmentRef.attachment = attachmentId++;
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+    }
+
+
+    //init attachment desc
+    std::vector< VkAttachmentDescription> attachmentsDesc;
+    for (int i = 0; i < MAX_RENDER_TARGETS; i++) {
+        if (renderPassState.useRT.test(i)) {
+            attachmentsDesc.push_back(renderPassState.rtAttachDesc[i]);
+        }
+    }
+    if (renderPassState.useDB) {
         attachmentsDesc.push_back(renderPassState.dbAttachDesc);
     }
 
@@ -674,8 +683,6 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateRenderPass(const RENDER_PASS_STATE& rend
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
-
-
 
     VkRenderPass renderPass;
     VkResult result = vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &renderPass);
@@ -704,10 +711,8 @@ VkResult VULKAN_DRIVER_INTERFACE::InitPipelineState()
     return VK_SUCCESS;
 }
 
-void VULKAN_DRIVER_INTERFACE::StartFrame(double frameStartTime)
+void VULKAN_DRIVER_INTERFACE::StartFrame()
 {
-    m_frameStartTime = frameStartTime;
-
 	vkWaitForFences(m_device, 1, &m_cpuGpuSyncFence[m_curContextId], VK_TRUE, UINT64_MAX);
 	vkResetFences(m_device, 1, &m_cpuGpuSyncFence[m_curContextId]);
 
@@ -718,27 +723,22 @@ void VULKAN_DRIVER_INTERFACE::StartFrame(double frameStartTime)
     //vkResetCommandPool(m_device, m_commandPool[m_curContextId], 0);
     VkDescriptorPoolResetFlags resetFlags = 0;
     vkResetDescriptorPool(m_device, m_descriptorPool[m_curContextId], resetFlags);
-    pRenderTargetManager->StartFrame();
-    pRenderTargetManager->SetCurSwapChainBufferId(m_swapChain.curSwapChainImageId);
+
+    InvalidateDeviceState();
+    SetupCurrentCommandBuffer(m_commandBuffers[m_curContextId]);
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     beginInfo.pInheritanceInfo = nullptr; // Optional
 
-    InvalidateDeviceState();
-    SetupCurrentCommandBuffer(m_commandBuffers[m_curContextId]);
-
     if (vkBeginCommandBuffer(m_curCommandBuffer, &beginInfo) != VK_SUCCESS) {
         ERROR_MSG("Failed to begin recording command buffer!");
     }
 }
 
-void VULKAN_DRIVER_INTERFACE::EndFrame(double frameEndTime)
+void VULKAN_DRIVER_INTERFACE::EndFrame()
 {
-    pRenderTargetManager->GetRenderTarget(RT_BACK_BUFFER, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    pRenderTargetManager->ReturnRenderTarget(RT_BACK_BUFFER);
-
     if (vkEndCommandBuffer(m_curCommandBuffer) != VK_SUCCESS) {
         ERROR_MSG("Failed to record command buffer!");
     }
@@ -759,9 +759,19 @@ void VULKAN_DRIVER_INTERFACE::EndFrame(double frameEndTime)
 	presentInfo.pResults = nullptr; // Optional
 	vkQueuePresentKHR(m_queueFamilies.presentQueue, &presentInfo);
 
-    m_frameTime = frameEndTime - m_frameStartTime;
 	m_frameId++;
 	m_curContextId = (m_curContextId + 1) % NUM_FRAME_BUFFERS;
+}
+
+void VULKAN_DRIVER_INTERFACE::WaitGPU()
+{
+//     VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+//     SetupCurrentCommandBuffer(commandBuffer);
+// 
+// 
+// 
+//     EndSingleTimeCommands(commandBuffer);
+    vkWaitForFences(m_device, NUM_FRAME_BUFFERS, m_cpuGpuSyncFence, VK_TRUE, UINT64_MAX);
 }
 
 void VULKAN_DRIVER_INTERFACE::SubmitCommandBuffer()
@@ -786,12 +796,30 @@ void VULKAN_DRIVER_INTERFACE::SubmitCommandBuffer()
 	}
 }
 
+void VULKAN_DRIVER_INTERFACE::ClearBackBuffer(const glm::vec4& clearColor)
+{
+    VkClearAttachment clearAttachment;
+    clearAttachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    memcpy(clearAttachment.clearValue.color.float32, &clearColor, sizeof(clearColor));
+    clearAttachment.colorAttachment = 0;
+
+    VkClearRect clearRect;
+    clearRect.rect.offset = { 0, 0 };
+    clearRect.rect.extent = { m_curFrameBufferState.GetFrameBufferWigth(), m_curFrameBufferState.GetFrameBufferHeight() };
+    clearRect.baseArrayLayer = 0;
+    clearRect.layerCount = 1;
+
+    vkCmdClearAttachments(m_curCommandBuffer, 1, &clearAttachment, 1, &clearRect);
+}
+
 VkResult VULKAN_DRIVER_INTERFACE::CreateFrameBuffer(const FRAME_BUFFER_STATE& frameBufferState)
 {
     std::vector<VkImageView> attachments;
 
-    if (frameBufferState.pRenderTargetTexture) {
-        attachments.push_back(frameBufferState.pRenderTargetTexture->imageView);
+    for (auto& rtTex: frameBufferState.pRenderTargetTextures) {
+        if (rtTex) {
+            attachments.push_back(rtTex->imageView);
+        }
     }
     if (frameBufferState.pDepthTexture) {
         attachments.push_back(frameBufferState.pDepthTexture->imageView);
@@ -816,6 +844,12 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateFrameBuffer(const FRAME_BUFFER_STATE& fr
     m_frameBufferCache.emplace(frameBufferState.GetHashValue(), framebuffer);
 
     return result;
+}
+
+VkResult VULKAN_DRIVER_INTERFACE::RecreateSwapChain()
+{
+    WaitGPU();
+    return VK_SUCCESS;
 }
 
 void VULKAN_DRIVER_INTERFACE::InvalidateDeviceState()
@@ -852,7 +886,6 @@ void VULKAN_DRIVER_INTERFACE::InvalidateDeviceState()
     m_curPiplineState.viewportHeight = 0;
     m_curPiplineState.viewportWidth = 0;
 
-    m_curTextureState.fill(VK_NULL_HANDLE);
     m_curVertexBuffer = VULKAN_BUFFER();
     m_curIndexBuffer = VULKAN_BUFFER();
 }
@@ -912,26 +945,17 @@ void VULKAN_DRIVER_INTERFACE::SetConstBuffer(uint32_t bufferId)
 
 void VULKAN_DRIVER_INTERFACE::SetTexture(const VULKAN_TEXTURE* texture, uint32_t slot)
 {
-//     if (texture == nullptr && m_curTextureState[slot] == VK_NULL_HANDLE) {
-//         return;
-//     }
-//     if ( texture->imageView == m_curTextureState[slot]) {
-//         return;
-//     }
-
     m_updateDescriptorSet = true;
     if (texture == nullptr) {
-        m_curTextureState[slot] = nullptr;
-    } else {
-        m_curTextureState[slot] = texture->imageView;
+        ASSERT(false);
+    } 
 
-        std::pair<uint8_t, VkDescriptorImageInfo> imageInfo;
-        imageInfo.first = slot;
-        imageInfo.second.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.second.imageView = texture->imageView;
-        imageInfo.second.sampler = nullptr;
-        m_curPassImageDescriptors.push_back(imageInfo);
-    }
+    std::pair<uint8_t, VkDescriptorImageInfo> imageInfo;
+    imageInfo.first = slot;
+    imageInfo.second.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.second.imageView = texture->imageView;
+    imageInfo.second.sampler = nullptr;
+    m_curPassImageDescriptors.push_back(imageInfo);
 }
 
 void VULKAN_DRIVER_INTERFACE::SetShader(uint8_t shaderId)
@@ -953,79 +977,22 @@ void VULKAN_DRIVER_INTERFACE::SetVertexFormat(uint8_t vertexFormat)
     }
 }
 
-void VULKAN_DRIVER_INTERFACE::SetRenderTarget(RENDER_TARGET rtIndex, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp)
+void VULKAN_DRIVER_INTERFACE::SetRenderTarget(const VULKAN_TEXTURE* pRtTexture, uint32_t rtSlot, VkAttachmentDescription rtDesc)
 {
-    //todo: remove VK_ACCESS_COLOR_ATTACHMENT_READ_BIT when we are drawing without blending
-    const VULKAN_TEXTURE* rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    m_curRenderPassState.useRT[rtSlot] = true;
+    m_curRenderPassState.rtAttachDesc[rtSlot] = rtDesc;
 
-    m_curRenderPassState.useRT = true;
-    m_curRenderPassState.rtAttachDesc.format = rtTex->format;
-    m_curRenderPassState.rtAttachDesc.loadOp = loadOp;
-    m_curRenderPassState.rtAttachDesc.storeOp = storeOp;
-
-    m_curRenderPassState.rtAttachDesc.flags = 0;
-    m_curRenderPassState.rtAttachDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-    m_curRenderPassState.rtAttachDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    m_curRenderPassState.rtAttachDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    m_curRenderPassState.rtAttachDesc.initialLayout = pRenderTargetManager->GetRenderTargetPrevLayout(rtIndex);
-    m_curRenderPassState.rtAttachDesc.finalLayout = pRenderTargetManager->GetRenderTargetFutureLayout(rtIndex);
-
-    m_curFrameBufferState.pRenderTargetTexture = rtTex;
-    m_curFrameBufferState.rtIndex = rtIndex;
-
+    m_curFrameBufferState.pRenderTargetTextures[rtSlot] = pRtTexture;
 }
 
-void VULKAN_DRIVER_INTERFACE::RemoveRenderTarget()
+void VULKAN_DRIVER_INTERFACE::SetDepthBuffer(const VULKAN_TEXTURE* pDepthTexture, VkAttachmentDescription depthDesc)
 {
-    m_curRenderPassState.useRT = false;
-    m_curRenderPassState.rtAttachDesc.format =  VK_FORMAT_UNDEFINED;
-    m_curRenderPassState.rtAttachDesc.loadOp = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
-    m_curRenderPassState.rtAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
-
-    m_curFrameBufferState.rtIndex = RT_LAST;
-    m_curFrameBufferState.pRenderTargetTexture = VK_NULL_HANDLE;
-}
-
-void VULKAN_DRIVER_INTERFACE::SetRenderTargetAsShaderResource(RENDER_TARGET rtIndex, uint32_t slot)
-{
-    const VULKAN_TEXTURE* rtTex = pRenderTargetManager->GetRenderTarget(rtIndex, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    SetTexture(rtTex, slot);
-}
-
-void VULKAN_DRIVER_INTERFACE::SetDepthBuffer(RENDER_TARGET rtIndex, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp)
-{
-    const VULKAN_TEXTURE* dbTex = pRenderTargetManager->GetRenderTarget(
-        rtIndex, 
-        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    );
-
     m_curRenderPassState.useDB = true;
-    m_curRenderPassState.dbAttachDesc.format = dbTex->format;
-    m_curRenderPassState.dbAttachDesc.loadOp = loadOp;
-    m_curRenderPassState.dbAttachDesc.storeOp = storeOp;
+    m_curRenderPassState.dbAttachDesc = depthDesc;
 
-    m_curRenderPassState.dbAttachDesc.flags = 0;
-    m_curRenderPassState.dbAttachDesc.samples = VK_SAMPLE_COUNT_1_BIT;
-    m_curRenderPassState.dbAttachDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    m_curRenderPassState.dbAttachDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    m_curRenderPassState.dbAttachDesc.initialLayout = pRenderTargetManager->GetRenderTargetPrevLayout(rtIndex);;
-    m_curRenderPassState.dbAttachDesc.finalLayout = pRenderTargetManager->GetRenderTargetFutureLayout(rtIndex);;
-
-    m_curFrameBufferState.pDepthTexture = dbTex;
-    m_curFrameBufferState.dbIndex = rtIndex;
+    m_curFrameBufferState.pDepthTexture = pDepthTexture;
 }
 
-void VULKAN_DRIVER_INTERFACE::RemoveDepthBuffer()
-{
-    m_curRenderPassState.useDB = false;
-    m_curRenderPassState.dbAttachDesc.format = VK_FORMAT_UNDEFINED;
-    m_curRenderPassState.dbAttachDesc.loadOp = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
-    m_curRenderPassState.dbAttachDesc.storeOp = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
-
-    m_curFrameBufferState.pDepthTexture = VK_NULL_HANDLE;
-    m_curFrameBufferState.dbIndex = RT_LAST;
-}
 
 void VULKAN_DRIVER_INTERFACE::SetDynamicState(VkDynamicState state, bool enableState)
 {
@@ -1114,11 +1081,13 @@ void VULKAN_DRIVER_INTERFACE::BeginRenderPass()
     }
 
     uint32_t numClearValues = 0;
-    std::array<VkClearValue, 2> clearValues{};
-    if (m_curRenderPassState.useRT) {
-        clearValues[numClearValues++].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    std::array<VkClearValue, MAX_RENDER_TARGETS + 1> clearValues{};
+    for (const auto& rtDesc: m_curRenderPassState.rtAttachDesc) {
+        if (rtDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR) {
+            clearValues[numClearValues++].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+        }
     }
-    if (m_curRenderPassState.useDB) {
+    if (m_curRenderPassState.dbAttachDesc.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR) {
         clearValues[numClearValues++].depthStencil = { 1.0f, 0 };
     }
 
@@ -1137,10 +1106,7 @@ void VULKAN_DRIVER_INTERFACE::BeginRenderPass()
 void VULKAN_DRIVER_INTERFACE::EndRenderPass()
 {
     vkCmdEndRenderPass(m_curCommandBuffer);
-    RemoveRenderTarget();
-    RemoveDepthBuffer();
     InvalidateDeviceState();
-    pRenderTargetManager->ReturnAllRenderTargets();
 }
 
 void VULKAN_DRIVER_INTERFACE::Draw(uint32_t vertexesNum)
@@ -1151,7 +1117,7 @@ void VULKAN_DRIVER_INTERFACE::Draw(uint32_t vertexesNum)
     }
 }
 
-void VULKAN_DRIVER_INTERFACE::DrawIndexed(size_t indexesNum, size_t vertexBufferOffset, size_t indexBufferOffset)
+void VULKAN_DRIVER_INTERFACE::DrawIndexed(uint32_t indexesNum, uint32_t vertexBufferOffset, uint32_t indexBufferOffset)
 {
     const bool stateUpdated = UpdatePiplineState();
     if (stateUpdated) {
@@ -1376,13 +1342,14 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
         colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     }
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStateVector(m_curRenderPassState.useRT.count(), colorBlendAttachment);
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.attachmentCount = uint32_t(colorBlendAttachmentStateVector.size());
+    colorBlending.pAttachments = colorBlendAttachmentStateVector.data();
     colorBlending.blendConstants[0] = 0.0f; // Optional
     colorBlending.blendConstants[1] = 0.0f; // Optional
     colorBlending.blendConstants[2] = 0.0f; // Optional
@@ -1457,6 +1424,11 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateGraphicPipeline(const PIPLINE_STATE& pip
     return result;
 }
 
+void VULKAN_DRIVER_INTERFACE::DropPiplineStateCache()
+{
+    m_pipelineStateCache.clear();
+}
+
 std::vector<const char*> VULKAN_DRIVER_INTERFACE::GetRequiredInstanceExtentions() const
 {
     std::vector<const char*> requiredExtentions;
@@ -1493,6 +1465,7 @@ std::vector<const char*> VULKAN_DRIVER_INTERFACE::GetRequiredInstanceExtentions(
 std::vector<const char*> VULKAN_DRIVER_INTERFACE::GetRequiredInstanceLayers() const
 {
     std::vector<const char*> requiredLayers;
+    requiredLayers.push_back("VK_LAYER_LUNARG_monitor");
     if (m_enableValidationLayer) {
         requiredLayers.push_back("VK_LAYER_LUNARG_standard_validation");
 
@@ -1619,7 +1592,7 @@ VkResult VULKAN_DRIVER_INTERFACE::InitLogicalDevice()
 }
 
 
-VkResult VULKAN_DRIVER_INTERFACE::InitSurface()
+VkResult VULKAN_DRIVER_INTERFACE::InitWindowSurface()
 {
     uint32_t windowWidth, windowHeight;
     void* pWindow;
@@ -1702,7 +1675,7 @@ VkResult VULKAN_DRIVER_INTERFACE::InitSwapChainImages()
         if (result != VK_SUCCESS) {
             return result;
         }
-        pRenderTargetManager->SetupSwapChainTexture(swapChainTexture, i);
+        m_swapChain.swapChainTexture[i] = swapChainTexture;
     }
     return result;
 }
@@ -1754,6 +1727,12 @@ VkResult VULKAN_DRIVER_INTERFACE::InitSemaphoresAndFences()
 			return VK_INCOMPLETE;
 		}
 	}
+
+    if (vkCreateFence(m_device, &fenceInfo, nullptr, &m_waitGpuFence) != VK_SUCCESS) {
+        ERROR_MSG("Failed to create fences!");
+        return VK_INCOMPLETE;
+    }
+    
     return VK_SUCCESS;
 }
 
@@ -2020,6 +1999,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
     default:
         msgType = "";
+        ASSERT(false);
         break;
     }
 
@@ -2097,7 +2077,7 @@ void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseSurfaceFormat(const std::vector
 
 void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
 {
-    presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;// VK_PRESENT_MODE_FIFO_KHR;
 }
 
 void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseExtent(const VkSurfaceCapabilitiesKHR & capabilities)
@@ -2152,22 +2132,39 @@ void VULKAN_DRIVER_INTERFACE::EndSingleTimeCommands(VkCommandBuffer commandBuffe
 
 uint32_t FRAME_BUFFER_STATE::GetFrameBufferHeight() const
 {
-    uint32_t frameBufferHeight = 0;
-    if (pRenderTargetTexture) {
-        frameBufferHeight = pRenderTargetTexture->height;
-    } else if (pDepthTexture) {
-        frameBufferHeight = pDepthTexture->height;
+    for (int i = 0; i < MAX_RENDER_TARGETS; i++) {
+        if (pRenderTargetTextures[i]) {
+            return pRenderTargetTextures[i]->height;
+        }
     }
-    return frameBufferHeight;
+    if (pDepthTexture) {
+        return pDepthTexture->height;
+    }
+    return 0;
 }
 
 uint32_t FRAME_BUFFER_STATE::GetFrameBufferWigth() const
 {
-    uint32_t frameBufferWidth = 0;
-    if (pRenderTargetTexture) {
-        frameBufferWidth = pRenderTargetTexture->width;
-    } else if (pDepthTexture) {
-        frameBufferWidth = pDepthTexture->width;
+    for (int i = 0; i < MAX_RENDER_TARGETS; i++) {
+        if (pRenderTargetTextures[i]) {
+            return pRenderTargetTextures[i]->width;
+        }
     }
-    return frameBufferWidth;
+    if (pDepthTexture) {
+        return pDepthTexture->width;
+    }
+    return 0;
+}
+
+glm::uvec2 FRAME_BUFFER_STATE::GetFrameBufferSize() const
+{
+    for (int i = 0; i < MAX_RENDER_TARGETS; i++) {
+        if (pRenderTargetTextures[i]) {
+            return { pRenderTargetTextures[i]->width, pRenderTargetTextures[i]->height };
+        }
+    }
+    if (pDepthTexture) {
+        return { pDepthTexture->width, pDepthTexture->height };
+    }
+    return { 0, 0 };
 }

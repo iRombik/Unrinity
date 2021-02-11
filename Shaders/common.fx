@@ -33,12 +33,21 @@ cbuffer LIGHT_BUFFER : register (b1) {
     float3   ambientColor;
 };
 
-[[vk::binding(3)]]
-cbuffer MATERIAL_BUFFER : register (b3) {
+[[vk::binding(2)]]
+cbuffer MATERIAL_BUFFER : register (b2) {
 };
 
-//common textures
-[[vk::binding(30)]] Texture2D texShadowMap;
+[[vk::binding(6)]]
+cbuffer UI_BUFFER 
+{
+    float2 scale;
+    float2 translate;
+} ;
+
+[[vk::binding(15)]]
+cbuffer DEBUG_BUFFER : register (b15) {
+    int visualizedDataType;
+};
 
 //common samplers
 [[vk::binding(120)]] SamplerState anisoSampler;

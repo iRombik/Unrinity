@@ -32,26 +32,35 @@ public:
             for (auto event = kse.first; event != kse.second; event++) {
                 const glm::vec3 dirLookAt = cameraRotation->quaternion * glm::vec3(1.f, 0.f, 0.f);
                 const KEY_STATE_EVENT* keyboardEvent = static_cast<const KEY_STATE_EVENT*>(event->second.get());
-                const SHORT_KEY_STATE& keyInput = keyboardEvent->keyState;
-                if (keyInput.isButtonPressed.any()) {
+                const KEY_STATE* keyInput = keyboardEvent->keyState;
+                if (keyInput->isButtonPressed.test(GLFW_KEY_W) ||
+                    keyInput->isButtonPressed.test(GLFW_KEY_A) ||
+                    keyInput->isButtonPressed.test(GLFW_KEY_S) ||
+                    keyInput->isButtonPressed.test(GLFW_KEY_D)) {
                     isCameraMoved = true;
                 } else {
                     continue;
                 }
                 const glm::vec3 sidewayVector = glm::cross(UP_VECTOR, dirLookAt);
 
-                const float cameraMovementSpeed = 10.f;
+                float cameraMovementSpeed = 5.f;
+                if (keyInput->isButtonWasPressed.test(GLFW_KEY_CAPS_LOCK)) {
+                    cameraMovementSpeed /= 5.f;
+                }
+                if (keyInput->isButtonWasPressed.test(GLFW_KEY_LEFT_SHIFT)) {
+                    cameraMovementSpeed *= 10.f;
+                }
 
-                if (keyInput.isButtonPressed[0]) {
+                if (keyInput->isButtonPressed.test(GLFW_KEY_W)) {
                     cameraPos->position += cameraMovementSpeed * dirLookAt;
                 }
-                if (keyInput.isButtonPressed[2]) {
+                if (keyInput->isButtonPressed.test(GLFW_KEY_S)) {
                     cameraPos->position -= cameraMovementSpeed * dirLookAt;
                 }
-                if (keyInput.isButtonPressed[1]) {
+                if (keyInput->isButtonPressed.test(GLFW_KEY_A)) {
                     cameraPos->position -= cameraMovementSpeed * sidewayVector;
                 }
-                if (keyInput.isButtonPressed[3]) {
+                if (keyInput->isButtonPressed.test(GLFW_KEY_D)) {
                     cameraPos->position += cameraMovementSpeed * sidewayVector;
                 }
             }

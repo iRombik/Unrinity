@@ -7,11 +7,12 @@
 
 namespace EFFECT_DATA {
     enum SHADER_ID {
-        SHR_BASE = 0,
-        SHR_FULLSCREEN = 1,
-        SHR_SHADOW = 2,
-        SHR_TERRAIN = 3,
-        SHR_UI = 4,
+        SHR_FULLSCREEN = 0,
+        SHR_FILL_GBUFFER = 1,
+        SHR_SHADE_GBUFFER = 2,
+        SHR_SHADOW = 3,
+        SHR_TERRAIN = 4,
+        SHR_UI = 5,
         SHR_LAST
     };
 
@@ -40,8 +41,10 @@ namespace EFFECT_DATA
     {
         CB_COMMON_DATA = 0, //per frame update
         CB_LIGHTS =  1, //per frame update
-        CB_TERRAIN = 2, //per frame update
-        CB_MATERIAL = 3, //per draw update
+        CB_MATERIAL = 2, //per draw update
+        CB_TERRAIN = 3, //per frame update
+        CB_UI,
+        CB_DEBUG,
         CB_LAST
     };
 
@@ -73,12 +76,24 @@ namespace EFFECT_DATA
         float     roughness;
     };
 
+    struct CB_UI_STRUCT
+    {
+        glm::vec2 scale;
+        glm::vec2 translate;
+    };
+
+    struct CB_DEBUG_STRUCT {
+        int visualizeDataType;
+    };
+
     const uint32_t CONST_BUFFERS_SIZE[] =
     {
         sizeof(CB_COMMON_DATA_STRUCT),
         sizeof(CB_LIGHTS_STRUCT),
+        sizeof(CB_MATERIAL_STRUCT),
         sizeof(CB_TERRAIN_STRUCT),
-        sizeof(CB_MATERIAL_STRUCT)
+        sizeof(CB_UI_STRUCT),
+        sizeof(CB_DEBUG_STRUCT),
     };
 
     const unsigned int CONST_BUFFERS_SLOT[] =
@@ -86,6 +101,8 @@ namespace EFFECT_DATA
         0,
         1,
         2,
-        3
+        5,
+        6,
+        15,
     };
 }

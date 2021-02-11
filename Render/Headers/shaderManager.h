@@ -34,8 +34,8 @@ private:
     const std::string SHADERS_FOLDER = "..\\shaders\\binaries\\";
 
     std::array<std::vector<VkDescriptorSetLayoutBinding>, EFFECT_DATA::SHR_LAST> m_shaderDesc;
-    std::vector<SHADER_MODULE> m_vertexShaderModules;
-    std::vector<SHADER_MODULE> m_pixelShaderModules;
+    std::array<SHADER_MODULE, EFFECT_DATA::SHR_LAST> m_vertexShaderModules;
+    std::array<SHADER_MODULE, EFFECT_DATA::SHR_LAST> m_pixelShaderModules;
 };
 
 extern std::unique_ptr<SHADER_MANAGER> pShaderManager;

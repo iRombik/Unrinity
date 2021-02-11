@@ -1,19 +1,19 @@
 #include "resourceSystem.h"
 #include "shaderManager.h"
-#include "meshManager.h"
-#include "textureManager.h"
-#include "materialManager.h"
+#include "geometry.h"
 
 #include "ecsCoordinator.h"
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STBI_MSC_SECURE_CRT
-//#define TINYGLTF_NOEXCEPTION
-//#define JSON_NOEXCEPTION
-#include "tiny_gltf.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <gli.hpp>
+
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#define TINYGLTF_NO_EXTERNAL_IMAGE
+#define TINYGLTF_NOEXCEPTION
+#define JSON_NOEXCEPTION
+#include "tiny_gltf.h"
 
 #include "Components/rendered.h"
 
@@ -22,13 +22,13 @@ std::unique_ptr<RESOURCE_SYSTEM> pResourceSystem;
 void RESOURCE_SYSTEM::Init()
 {
     pShaderManager.reset(new SHADER_MANAGER);
-    pMeshManager.reset(new MESH_MANAGER);
-    pTextureManager.reset(new TEXTURE_MANAGER);
+    //pMeshManager.reset(new MESH_MANAGER);
+    //pTextureManager.reset(new TEXTURE_MANAGER);
     pVertexDeclarationManager.reset(new VERTEX_DECLARATION_MANAGER);
 
     pShaderManager->Init();
-    pMeshManager->Init();
-    pTextureManager->Init();
+    //pMeshManager->Init();
+    //pTextureManager->Init();
     pVertexDeclarationManager->Init();
 }
 
@@ -41,6 +41,11 @@ VkFormat CastGltfToVulkanTextureFormat(int componentNum, int componentType)
     }
     ASSERT_MSG(false, "Unknown texture type!");
     return VK_FORMAT_UNDEFINED;
+}
+
+void RESOURCE_SYSTEM::CreateDefaultResources()
+{
+    CreateDefalutTextures();
 }
 
 bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
@@ -72,22 +77,12 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
         return false;
     }
 
+    std::string baseDir = tinygltf::GetBaseDir(levelName);
     m_textureList.resize(gltfModel.images.size());
     for (size_t texId = 0; texId < gltfModel.images.size(); texId++) {
         const tinygltf::Image& image = gltfModel.images[texId];
-
-        VULKAN_TEXTURE_CREATE_DATA createData;
-        createData.dataSize = image.height * image.width * image.component * (image.bits / 8);
-        createData.extent.height = image.height;
-        createData.extent.width = image.width;
-        createData.extent.depth = 1;
-        createData.format = CastGltfToVulkanTextureFormat(image.component, image.pixel_type);
-        createData.mipLevels = 1;
-        createData.pData = static_cast<const uint8_t*>(image.image.data());
-        createData.usage = VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-        VkResult result = pDrvInterface->CreateTexture(createData, m_textureList[texId]);
-        ASSERT(result == VK_SUCCESS);
+        bool isTextureLoaded = LoadTexture(image.uri, baseDir, m_textureList[texId]);
+        ASSERT(isTextureLoaded);
     }
 
     m_materialsList.resize(gltfModel.materials.size() + 1);
@@ -101,15 +96,25 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
 
         if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index != -1) {
             material.pAlbedoTex = &m_textureList[gltfMaterial.pbrMetallicRoughness.baseColorTexture.index];
+        } else {
+            material.pAlbedoTex = &m_defaultTextureList[DEFAULT_RED_TEXTURE];
         }
+
         if (gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index != -1) {
             material.pMetalRoughnessTex = &m_textureList[gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index];
+        } else {
+            material.pMetalRoughnessTex = &m_defaultTextureList[DEFAULT_GREEN_TEXTURE];
         }
+
         if (gltfMaterial.normalTexture.index != -1) {
             material.pNormalTex = &m_textureList[gltfMaterial.normalTexture.index];
+        } else {
+            material.pNormalTex = &m_defaultTextureList[DEFAULT_NORMAL_TEXTURE];
         }
         if (gltfMaterial.emissiveTexture.index != -1) {
             material.pEmissiveTex = &m_textureList[gltfMaterial.emissiveTexture.index];
+        } else {
+            material.pEmissiveTex = &m_defaultTextureList[DEFAULT_BLACK_TEXTURE];
         }
 //         if (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) {
 //             material.occlusionTexture = &textures[mat.additionalValues["occlusionTexture"].TextureIndex()];
@@ -216,7 +221,7 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
             std::vector<SIMPLE_VERTEX> vertexBuf(posAccessor.count);
             for (int verId = 0; verId < posAccessor.count; verId++) {
                 SIMPLE_VERTEX& vertex = vertexBuf[verId];
-                vertex.position = glm::make_vec3((float*)&bufferPos[verId * posByteStride]);
+                vertex.position = glm::make_vec3((float*)&bufferPos[verId * posByteStride]) / 10.f;
                 if (bufferTexCoordSet0) {
                     vertex.texCoord = glm::make_vec2((float*)&bufferTexCoordSet0[verId * uv0ByteStride]);
                 } else {
@@ -353,6 +358,162 @@ void RESOURCE_SYSTEM::UnloadScene()
 {
 }
 
+VkFormat CastGliToVulkanFormat(gli::format gliFormat) {
+    switch (gliFormat)
+    {
+    case gli::FORMAT_R_ATI1N_UNORM_BLOCK8:
+        return VK_FORMAT_BC4_UNORM_BLOCK;
+    case gli::FORMAT_RGB_BP_SFLOAT_BLOCK16:
+        return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+    case  gli::FORMAT_RGBA_BP_UNORM_BLOCK16:
+        return VK_FORMAT_BC7_UNORM_BLOCK;
+    default:
+        ERROR_MSG("Unsupported format!");
+    }
+    return VK_FORMAT_UNDEFINED;
+}
+
+std::string GetTextureCachedName(const std::string& texName)
+{
+    std::string cachedName = texName;
+    std::replace(cachedName.begin(), cachedName.end(), ' ', '_');
+    std::replace(cachedName.begin(), cachedName.end(), '/', '_');
+    std::replace(cachedName.begin(), cachedName.end(), '\\', '_');
+    std::replace(cachedName.begin(), cachedName.end(), '.', '_');
+    return cachedName + ".dds";
+}
+
+bool CreateCachedTexture(const std::string& texSourcePath, const std::string& texDestPath, std::string format)
+{
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    // set the size of the structures
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    const std::wstring converterPath = L"C:/Program Files/NVIDIA Corporation/NVIDIA Texture Tools Exporter/nvtt_export.exe";
+    const std::string commandLineSting = texSourcePath + " --format " + format + " --mip-filter kaiser" + " --output " + texDestPath;
+    const std::wstring commandLineWstring(commandLineSting.begin(), commandLineSting.end());
+
+    // start the program up
+    CreateProcess(converterPath.c_str(),                       // the path
+        const_cast<LPWSTR>((L"\"" + converterPath + L"\" " + commandLineWstring).c_str()),        // Command line
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        NULL,           // Use parent's starting directory 
+        &si,            // Pointer to STARTUPINFO structure
+        &pi             // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
+    );
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return true;
+}
+
+bool RESOURCE_SYSTEM::LoadTexture(const std::string& textureName, const std::string& textureDir, VULKAN_TEXTURE& texture)
+{
+    const std::string cachedTexturePath = CACHE_TEXTURE_DIR + GetTextureCachedName(textureName);
+
+    gli::texture gliTexture = gli::load(cachedTexturePath);
+
+    if (gliTexture.empty()) {
+        DEBUG_MSG(formatString("Can't load texture %s from cache\n", textureName.c_str()).c_str());
+        const std::string texturePath = textureDir + "/" + textureName;
+        std::string format = "bc7";
+//         if (textureName.find("Displacement") || textureName.find("Roughness") || textureName.find("Metalness")) {
+//             format = "bc4";
+//         }
+        CreateCachedTexture(texturePath, cachedTexturePath, format);
+        gliTexture = gli::load(cachedTexturePath);
+        if (gliTexture.empty()) {
+            ERROR_MSG("Can't create cached version!");
+            return false;
+        }
+
+    }
+
+    VULKAN_TEXTURE_CREATE_DATA createData;
+    createData.pData = gliTexture.data<uint8_t>();
+    createData.dataSize = gliTexture.size();
+    createData.extent.width = static_cast<uint32_t>(gliTexture.mip_level_width(0));
+    createData.extent.height = static_cast<uint32_t>(gliTexture.mip_level_height(0));
+    createData.extent.depth = static_cast<uint32_t>(gliTexture.mip_level_depth(0));
+    createData.format = CastGliToVulkanFormat(gliTexture.format());
+    createData.mipLevels = static_cast<uint32_t>(gliTexture.levels());
+    createData.usage = VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    size_t mipOffset = 0;
+    for (int i = 0; i < gliTexture.levels(); i++) {
+        createData.mipLevelsOffsets.push_back(mipOffset);
+        mipOffset += gliTexture.size(i);
+    }
+    VkResult textureCreated = pDrvInterface->CreateTexture(createData, texture);
+
+    gliTexture.clear();
+    if (textureCreated != VK_SUCCESS) {
+        WARNING_MSG(formatString("%s texture creatino failed!", textureName.c_str()).c_str());
+        pDrvInterface->DestroyTexture(texture);
+        return false;
+    }
+    return true;
+}
+
+void RESOURCE_SYSTEM::CreateDefalutTextures()
+{
+    glm::u8vec4 color;
+
+    VULKAN_TEXTURE_CREATE_DATA createData;
+    createData.dataSize = sizeof(glm::u8vec4);
+    createData.extent.height = 1;
+    createData.extent.width = 1;
+    createData.extent.depth = 1;
+    createData.format = VK_FORMAT_R8G8B8A8_UNORM;
+    createData.mipLevels = 1;
+    createData.usage = VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    {
+        color = glm::u8vec4(0, 0, 0, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_BLACK_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(255, 0, 0, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_RED_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(0, 255, 0, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_GREEN_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(0, 0, 255, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_BLUE_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(255, 255, 255, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_WHITE_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(127, 127, 255, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_NORMAL_TEXTURE]);
+    }
+    {
+        color = glm::u8vec4(127, 127, 0, 255);
+        createData.pData = reinterpret_cast<uint8_t*>(&color);
+        VkResult result = pDrvInterface->CreateTexture(createData, m_defaultTextureList[DEFAULT_INVERTED_NORMAL_TEXTURE]);
+    }
+}
+
 void RESOURCE_SYSTEM::Reload()
 {
     pShaderManager->ReloadShaders();
@@ -361,12 +522,7 @@ void RESOURCE_SYSTEM::Reload()
 void RESOURCE_SYSTEM::Term()
 {
     pShaderManager->TermShaders();
-    pMeshManager->Term();
-    pTextureManager->Term();
-
     pShaderManager.release();
-    pMeshManager.release();
-    pTextureManager.release();
 }
 
 bool RESOURCE_SYSTEM::LoadShaders()
@@ -377,4 +533,7 @@ bool RESOURCE_SYSTEM::LoadShaders()
 
 void RESOURCE_SYSTEM::ReloadShaders()
 {
+    pDrvInterface->WaitGPU();
+    pDrvInterface->DropPiplineStateCache();
+    pShaderManager->ReloadShaders();
 }

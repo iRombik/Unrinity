@@ -27,10 +27,11 @@ private:
 
 struct KEY_STATE {
     std::bitset<GLFW_KEY_LAST + 1> isButtonPressed;
+    std::bitset<GLFW_KEY_LAST + 1> isButtonWasPressed;
 };
 
-struct SHORT_KEY_STATE {
-    std::bitset<4> isButtonPressed; // w, a, s, d
+struct KEY_STATE_EVENT : ECS::EVENT<KEY_STATE_EVENT> {
+    const KEY_STATE* keyState;
 };
 
 struct MOUSE_POSITION {
@@ -38,12 +39,6 @@ struct MOUSE_POSITION {
 
     int x;
     int y;
-};
-
-struct KEY_STATE_EVENT : public ECS::EVENT<KEY_STATE_EVENT>
-{
-    KEY_STATE_EVENT(SHORT_KEY_STATE&& _keyState) : keyState(_keyState) {}
-    SHORT_KEY_STATE keyState;
 };
 
 struct MOUSE_STATE_EVENT : ECS::EVENT<MOUSE_STATE_EVENT>
@@ -57,8 +52,7 @@ public:
     void Init(GLFWwindow* pWindow);
     void Update();
 private:
-    void UpdateKeyState(int glfwKey);
-    SHORT_KEY_STATE CreateShortKeyState();
+    bool UpdateKeyState(int glfwKey);
 
 private:
     KEY_STATE keyStateHolder;

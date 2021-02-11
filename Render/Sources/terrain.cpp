@@ -65,16 +65,12 @@ void TERRAIN_SYSTEM::Render()
     terrainData.terrainStartPos = m_terrainStartPoint;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_TERRAIN, &terrainData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_TERRAIN]);
 
-    //tmp
-    pRenderTargetManager->ReturnRenderTarget(RT_SHADOW_MAP);
-    const VULKAN_TEXTURE* sm = pRenderTargetManager->GetRenderTarget(RT_SHADOW_MAP, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
     for (TERRAIN_BLOCK& block : m_blocks) {
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_TERRAIN);
 
-        pDrvInterface->SetTexture(sm, 30);
+       // pDrvInterface->SetTexture(sm, 30);
 
         pDrvInterface->FillPushConstantBuffer(&block.pos, sizeof(block.pos));
 
@@ -87,13 +83,14 @@ void TERRAIN_SYSTEM::Render()
 
 void TERRAIN_SYSTEM::BeginPass()
 {
-    pDrvInterface->SetRenderTarget(RT_FP16, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
-    pDrvInterface->SetDepthBuffer(RT_DEPTH_BUFFER, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
-    pDrvInterface->SetRenderTargetAsShaderResource(RT_SHADOW_MAP, 30);
+    pRenderTargetManager->SetTextureAsRenderTarget(RT_FP16, 0, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+    pRenderTargetManager->SetTextureAsDepthBuffer(RT_DEPTH_BUFFER, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
     pDrvInterface->BeginRenderPass();
+    pRenderTargetManager->SetTextureAsSRV(RT_SHADOW_MAP, 30);
 }
 
 void TERRAIN_SYSTEM::EndPass()
 {
     pDrvInterface->EndRenderPass();
+    pRenderTargetManager->ReturnAllRenderTargetsToPool();
 }

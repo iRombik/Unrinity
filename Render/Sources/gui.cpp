@@ -10,6 +10,8 @@
 #include "Components/rendered.h"
 #include "Components/lightSource.h"
 
+#include "Events/debug.h"
+
 #include "commonRenderVariables.h"
 #include "geometry.h"
 #include "gui.h"
@@ -17,9 +19,7 @@
 #include "vulkanDriver.h"
 #include "windowSystem.h"
 
-#include "materialManager.h"
-#include "meshManager.h"
-#include "textureManager.h"
+#include "resourceSystem.h"
 #include "renderTargetManager.h"
 
 static GLFWwindow* g_Window = NULL;    // Main window
@@ -34,6 +34,11 @@ static GLFWscrollfun        g_PrevUserCallbackScroll = NULL;
 static GLFWkeyfun           g_PrevUserCallbackKey = NULL;
 static GLFWcharfun          g_PrevUserCallbackChar = NULL;
 
+struct GUI_SHADER_PUSH_CONST_DATA
+{
+
+    int sampledTexId;
+};
 
 bool GUI_SYSTEM::Init() {
     IMGUI_CHECKVERSION();
@@ -220,6 +225,15 @@ void GUI_SYSTEM::Render() {
         pDrvInterface->FillBuffer(m_intermidiateIndexBuffer, indexBufferOffset, 0, m_mesh.indexBuffer);
     }
 
+    {
+        EFFECT_DATA::CB_UI_STRUCT uiData;
+        uiData.scale.x = 2.0f / draw_data->DisplaySize.x;
+        uiData.scale.y = 2.0f / draw_data->DisplaySize.y;
+        uiData.translate.x = -1.0f - draw_data->DisplayPos.x * uiData.scale.x;
+        uiData.translate.y = -1.0f - draw_data->DisplayPos.y * uiData.scale.y;
+        pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_UI, &uiData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_UI]);
+    }
+
     pDrvInterface->SetDynamicState(VK_DYNAMIC_STATE_SCISSOR, true);
     pDrvInterface->SetDepthTestState(false);
     pDrvInterface->SetDepthWriteState(false);
@@ -228,17 +242,8 @@ void GUI_SYSTEM::Render() {
     pDrvInterface->SetVertexBuffer(m_mesh.vertexBuffer, 0);
     pDrvInterface->SetIndexBuffer(m_mesh.indexBuffer, 0);
     pDrvInterface->SetVertexFormat(m_mesh.vertexFormatId);
-    pDrvInterface->SetTexture(&m_fontTexture, 16);
-
-    {
-        glm::vec4 uiScaleAndTranslate;
-        uiScaleAndTranslate.x = 2.0f / draw_data->DisplaySize.x;
-        uiScaleAndTranslate.y = 2.0f / draw_data->DisplaySize.y;
-        uiScaleAndTranslate.z = -1.0f - draw_data->DisplayPos.x * uiScaleAndTranslate.x;
-        uiScaleAndTranslate.w = -1.0f - draw_data->DisplayPos.y * uiScaleAndTranslate.y;
-        pDrvInterface->FillPushConstantBuffer(&uiScaleAndTranslate, sizeof(uiScaleAndTranslate));
-    }
-
+    pDrvInterface->SetTexture(&m_fontTexture, 20);
+    pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_UI);
 
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
@@ -292,13 +297,8 @@ void GUI_SYSTEM::Render() {
                     scissor.extent.height = (uint32_t)(clip_rect.w - clip_rect.y);
                     pDrvInterface->SetScissorRect(scissor);
 
-                    if (pcmd->TextureId) {
-                        //todo
-                        pRenderTargetManager->ReturnRenderTarget((RENDER_TARGET)m_debugRT);
-                        pDrvInterface->SetRenderTargetAsShaderResource((RENDER_TARGET)m_debugRT, 16);
-                    } else {
-                        pDrvInterface->SetTexture(&m_fontTexture, 16);
-                    }
+                    int isCustomTex = (pcmd->TextureId != 0);
+                    pDrvInterface->FillPushConstantBuffer(&isCustomTex, sizeof(int));
 
                     // Draw
                     pDrvInterface->DrawIndexed(pcmd->ElemCount, pcmd->VtxOffset + global_vtx_offset, pcmd->IdxOffset + global_idx_offset);
@@ -463,6 +463,15 @@ void GUI_SYSTEM::DescribeInterface()
 
     static glm::vec4 clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
     
+    //ImGui::ShowDemoWindow();
+
+    const TRANSFORM_COMPONENT* cameraTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(gameCamera);
+
+    ImGui::BulletText(
+        "Camera position = (%.2f, %.2f, %.2f)",
+        cameraTransform->position.x, cameraTransform->position.y, cameraTransform->position.z
+    );
+
     bool isButtonStateChanged = ImGui::Checkbox("Show lights", &m_showLights);
     if (isButtonStateChanged) {
         for (auto light : pointLights) {
@@ -483,7 +492,7 @@ void GUI_SYSTEM::DescribeInterface()
         TRANSFORM_COMPONENT* dirLightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
         DIRECTIONAL_LIGHT_COMPONENT* dirLightComponent = ECS::pEcsCoordinator->GetComponent<DIRECTIONAL_LIGHT_COMPONENT>(directionalLight);
 
-        ImGui::SliderFloat3("Position", (float*)&dirLightTransform->position, -60.f, +60.f);
+        ImGui::InputFloat3("Position", (float*)&dirLightTransform->position, 3);
         ImGui::SliderFloat("Intensity", &dirLightComponent->intensity, 0.0f, 10.0f);
         ImGui::ColorEdit3("Color", (float*)&dirLightComponent->color);
     }
@@ -491,9 +500,9 @@ void GUI_SYSTEM::DescribeInterface()
         TRANSFORM_COMPONENT* lightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
         POINT_LIGHT_COMPONENT* lightComponent = ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(pointLights[0]);
 
-        ImGui::SliderFloat3("Position", (float*)&lightTransform->position, -60.f, +60.f);
+        ImGui::InputFloat3("Position", (float*)&lightTransform->position, 3);
         ImGui::SliderFloat("Intensity", &lightComponent->intensity, 0.0f, 10.0f);
-        ImGui::SliderFloat("Area light", &lightComponent->areaLight, 50.0f, 200.0f);
+        ImGui::SliderFloat("Area light", &lightComponent->areaLight, 50.0f, 10000.0f);
         ImGui::ColorEdit3("Color", (float*)&lightComponent->color);
     }
     ImGui::Separator();
@@ -502,29 +511,33 @@ void GUI_SYSTEM::DescribeInterface()
         ImGui::SliderFloat("Slope", &DEPTH_BIAS_PARAMS.y, 0.0f, 10.0f);
     }
     ImGui::Separator();
-    ImGui::Combo("RT debug view", &m_debugRT, RENDER_TARGET_NAME, RENDER_TARGET::RT_LAST + 1);
+    ImGui::Combo("RT debug view", &m_debugRT, RENDER_TARGET_NAME, RENDER_TARGET_ID::RT_LAST + 1);
     if (m_debugRT != RT_LAST) {
         const ImVec2 size(192.f / 9.f * 16.f, 192.f);
         ImGui::Image((void*)0x8, size);
     }
 
-    if (ImGui::Button("Rebuild shader cache")) {
-        //pResourceSystem->ReloadShaders();
+    if (ImGui::Button("Reload shader cache")) 
+    {
+        pResourceSystem->ReloadShaders();
     }
     ImGui::End();
 }
 
 void GUI_SYSTEM::BeginRenderPass()
 {
-    pDrvInterface->SetRenderTarget(RT_BACK_BUFFER, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
-    pDrvInterface->BeginRenderPass();
-    if (m_debugRT != RT_LAST) {
-        pDrvInterface->SetRenderTargetAsShaderResource((RENDER_TARGET)m_debugRT, 17);
+    pRenderTargetManager->SetTextureAsRenderTarget(RT_BACK_BUFFER, 0, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+    if (m_debugRT != RT_LAST && m_debugRT != RT_BACK_BUFFER) {
+        pRenderTargetManager->SetTextureAsSRV((RENDER_TARGET_ID)m_debugRT, 21);
+    } else {
+        pDrvInterface->SetTexture(pResourceSystem->GetDefaultTexture(DEFAULT_RED_TEXTURE), 21);
     }
+    pDrvInterface->BeginRenderPass();
 }
 
 void GUI_SYSTEM::EndRenderPass()
 {
     pDrvInterface->EndRenderPass();
+    pRenderTargetManager->ReturnAllRenderTargetsToPool();
 }
 

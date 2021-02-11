@@ -1,8 +1,4 @@
-[[vk::push_constant]]
-struct pushConstant {
-    float2 scale;
-    float2 translate;
-} pc;
+#include "common.fx"
 
 struct VERTEX_INPUT {
 	float2 pos   : POSITION;
@@ -19,5 +15,5 @@ void main(in VERTEX_INPUT vertexInput, out VERTEX_OUTPUT vertexOutput, out float
 {
     vertexOutput.color = vertexInput.color;
 	vertexOutput.uv = vertexInput.uv;
-    projPos = float4(vertexInput.pos * pc.scale + pc.translate, 0.f, 1.f);
+    projPos = float4(vertexInput.pos * scale + translate, 0.f, 1.f);
 }

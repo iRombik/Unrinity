@@ -1,4 +1,4 @@
-#include "baseCommon.fx"
+#include "fillGBufferCommon.fx"
 
 [[vk::push_constant]]
 struct PUSH_CONSTANT {

@@ -12,8 +12,9 @@ std::unique_ptr<SHADER_MANAGER> pShaderManager;
 
 namespace EFFECT_DATA {
     std::string SHADER_NAMES[] = {
-        "base",
         "fullscreen",
+        "fillGBuffer",
+        "shadeGBuffer",
         "shadow",
         "terrain",
         "ui"
@@ -31,8 +32,6 @@ namespace EFFECT_DATA {
 
 void SHADER_MANAGER::Init()
 {
-    m_vertexShaderModules.resize(EFFECT_DATA::SHR_LAST);
-    m_pixelShaderModules.resize(EFFECT_DATA::SHR_LAST);
     InitShaderDecriptorLayoutTable();
 }
 
@@ -51,19 +50,25 @@ VkDescriptorSetLayoutBinding CreateLayoutBinding(uint32_t bindingSlot, VkDescrip
 
 void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
 {
-    const size_t shrBaseId = EFFECT_DATA::SHR_BASE;
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_ALL_GRAPHICS));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS],  VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_MATERIAL], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(18, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(19, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrBaseId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-
-
     const size_t shrFullscreenId = EFFECT_DATA::SHR_FULLSCREEN;
-    m_shaderDesc[shrFullscreenId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrFullscreenId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+    const size_t shrFillGBufferId = EFFECT_DATA::SHR_FILL_GBUFFER;
+    m_shaderDesc[shrFillGBufferId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS));
+    m_shaderDesc[shrFillGBufferId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_MATERIAL], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrFillGBufferId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrFillGBufferId].push_back(CreateLayoutBinding(21, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrFillGBufferId].push_back(CreateLayoutBinding(22, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+    const size_t shrShadeGBufferId = EFFECT_DATA::SHR_SHADE_GBUFFER;
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(21, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(22, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(23, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(24, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(25, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     const size_t shrShadow = EFFECT_DATA::SHR_SHADOW;
     m_shaderDesc[shrShadow].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
@@ -72,11 +77,11 @@ void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
     m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
     m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_TERRAIN], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
-    m_shaderDesc[shrTerrain].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     const size_t shrUiId = EFFECT_DATA::SHR_UI;
-    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(16, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
-    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(17, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_UI], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
+    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(20, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(21, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     for (int i = 0; i < EFFECT_DATA::SHR_LAST; i++) {
         for (int s = 0; s < NUM_SAMPLERS; s++) {
@@ -147,7 +152,7 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
         NULL,           // Process handle not inheritable
         NULL,           // Thread handle not inheritable
         FALSE,          // Set handle inheritance to FALSE
-        0,              // No creation flags
+        CREATE_NO_WINDOW,  // creation flags
         NULL,           // Use parent's environment block
         NULL,           // Use parent's starting directory 
         &si,            // Pointer to STARTUPINFO structure
@@ -221,9 +226,6 @@ void SHADER_MANAGER::TermShaders()
     for (SHADER_MODULE& shaderModule : m_pixelShaderModules) {
         pDrvInterface->DestroyShader(shaderModule.shader);
     }
-    m_vertexShaderModules.clear();
-    m_pixelShaderModules.clear();
-
 }
 
 const std::vector<VkDescriptorSetLayoutBinding>& SHADER_MANAGER::GetDecriptorLayouts(uint8_t shaderId) const

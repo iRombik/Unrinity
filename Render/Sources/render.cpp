@@ -4,9 +4,7 @@
 #include "terrain.h"
 #include "gui.h"
 #include "effectData.h"
-#include "textureManager.h"
 #include "materialManager.h"
-#include "meshManager.h"
 #include "render.h"
 #include "resourceSystem.h"
 #include "renderTargetManager.h"
@@ -14,12 +12,15 @@
 #include "vulkanDriver.h"
 
 #include "ecsCoordinator.h"
+
 #include "Components/camera.h"
 #include "Components/transformation.h"
+
 #include "Events/debug.h"
 
 #include "visibilitySystem.h"
-#include "renderPassOpaque.h"
+#include "renderPassFillGBuffer.h"
+#include "renderPassShadeGBuffer.h"
 #include "renderPassResolve.h"
 #include "renderPassShadow.h"
 
@@ -45,10 +46,11 @@ bool RENDER_SYSTEM::Init()
         return false;
     }
 
-    pRenderTargetManager->Init(pDrvInterface->GetBackBufferWidth(), pDrvInterface->GetBackBufferHeight());
+    pRenderTargetManager->Init(pDrvInterface->GetBackBufferWidth(), pDrvInterface->GetBackBufferHeight(), pDrvInterface->GetBackBufferFormat());
 
     ECS::pEcsCoordinator->CreateSystem<VISIBILITY_SYSTEM>()->Init();
-    ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_OPAQUE>()->Init();
+    ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_FILL_GBUFFER>()->Init();
+    ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SHADE_GBUFFER>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_RESOLVE>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SHADOW>()->Init();
 
@@ -58,20 +60,23 @@ bool RENDER_SYSTEM::Init()
 void RENDER_SYSTEM::Update()
 {
     ECS::pEcsCoordinator->GetSystem <VISIBILITY_SYSTEM>()->Update();
-    //ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Update();
+    ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Update();
 }
 
 void RENDER_SYSTEM::Render()
 {
-    pDrvInterface->StartFrame(0.f);
+    pDrvInterface->StartFrame();
+    pRenderTargetManager->StartFrame();
 
-    //ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Render();
-    ECS::pEcsCoordinator->GetSystem<RENDER_PASS_OPAQUE>()->Render();
+    ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Render();
     //ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Render();
+    ECS::pEcsCoordinator->GetSystem<RENDER_PASS_FILL_GBUFFER>()->Render();
+    ECS::pEcsCoordinator->GetSystem<RENDER_PASS_SHADE_GBUFFER>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_RESOLVE>()->Render();
     ECS::pEcsCoordinator->GetSystem<GUI_SYSTEM>()->Render();
 
-    pDrvInterface->EndFrame(0.f);
+    pRenderTargetManager->EndFrame();
+    pDrvInterface->EndFrame();
 }
 
 void RENDER_SYSTEM::Term()

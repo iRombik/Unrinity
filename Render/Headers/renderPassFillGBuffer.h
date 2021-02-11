@@ -1,8 +1,9 @@
 #pragma once
+
 #include "vulkanDriver.h"
 #include "ecsCoordinator.h"
 
-class RENDER_PASS_OPAQUE : public ECS::SYSTEM<RENDER_PASS_OPAQUE> {
+class RENDER_PASS_FILL_GBUFFER : public ECS::SYSTEM<RENDER_PASS_FILL_GBUFFER> {
 public:
     void Init();
     void Render();

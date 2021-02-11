@@ -7,8 +7,6 @@
 #include "gui.h"
 #include "terrain.h"
 
-// #include "textureManager.h"
-// #include "materialManager.h"
 #include "resourceSystem.h"
 #include "gameCameraSystem.h"
 #include "windowSystem.h"
@@ -36,6 +34,7 @@ bool GAME_MANAGER::Init()
         return false;
     }
     pResourceSystem->LoadShaders();
+    pResourceSystem->CreateDefaultResources();
 
     GUI_SYSTEM* guiSystem = ECS::pEcsCoordinator->CreateSystem<GUI_SYSTEM>();
     if (!guiSystem->Init()) {
@@ -220,7 +219,7 @@ void GAME_MANAGER::LoadSponzaLevel()
         ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, light);
 
         TRANSFORM_COMPONENT transform;
-        transform.position = center + glm::vec3(-30.f, 0.f, 0.f);
+        transform.position = glm::vec3(-30.f, 0.f, 0.f);
         ECS::pEcsCoordinator->AddComponentToEntity(lightEntity, transform);
 
         CAMERA_COMPONENT lightCamera;
@@ -242,7 +241,7 @@ void GAME_MANAGER::LoadSponzaLevel()
         ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, light);
 
         TRANSFORM_COMPONENT transform;
-        transform.position = center + glm::vec3(15.f, 30.f, 0.f);
+        transform.position = glm::vec3(-1300.f, 2300.f, -160.f);
         ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, transform);
 
         CAMERA_COMPONENT lightCamera;
@@ -254,6 +253,8 @@ void GAME_MANAGER::LoadSponzaLevel()
     }
 
     pResourceSystem->LoadModel("Sponza");
+    //pResourceSystem->LoadModel("MetalRoughSpheres");
+    //pResourceSystem->LoadModel("Suzanne");
 }
 
 void GAME_MANAGER::Run() {

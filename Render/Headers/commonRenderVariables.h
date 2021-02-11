@@ -3,6 +3,7 @@
 #include "ecsCommon.h"
 
 static const glm::vec3 UP_VECTOR(0.f, 1.f, 0.f);
+static const glm::vec4 UP_VECTOR4(0.f, 1.f, 0.f, 0.f);
 extern glm::vec3 COMMON_AMBIENT;
 extern glm::vec2 DEPTH_BIAS_PARAMS;
 

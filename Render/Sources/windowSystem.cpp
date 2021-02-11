@@ -55,14 +55,21 @@ void INPUT_SYSTEM::Init(GLFWwindow* _pWindow)
 
 void INPUT_SYSTEM::Update()
 {
-    UpdateKeyState(GLFW_KEY_W);
-    UpdateKeyState(GLFW_KEY_A);
-    UpdateKeyState(GLFW_KEY_S);
-    UpdateKeyState(GLFW_KEY_D);
-    UpdateKeyState(GLFW_KEY_LEFT_CONTROL);
-    UpdateKeyState(GLFW_KEY_TAB);
+    bool isStateChanged = false;;
+    isStateChanged |= UpdateKeyState(GLFW_KEY_W);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_A);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_S);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_D);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_LEFT_CONTROL);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_LEFT_ALT);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_LEFT_SHIFT);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_TAB);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_ENTER);
+    isStateChanged |= UpdateKeyState(GLFW_KEY_CAPS_LOCK);
 
-    ECS::pEcsCoordinator->SendEvent(KEY_STATE_EVENT(CreateShortKeyState()));
+    KEY_STATE_EVENT event;
+    event.keyState = &keyStateHolder;
+    ECS::pEcsCoordinator->SendEvent(event);
 
     double xPos, yPos;
     glfwGetCursorPos(pWindow, &xPos, &yPos);
@@ -79,24 +86,15 @@ void INPUT_SYSTEM::Update()
     }
 }
 
-void INPUT_SYSTEM::UpdateKeyState(int glfwKey)
+bool INPUT_SYSTEM::UpdateKeyState(int glfwKey)
 {
     int state = glfwGetKey(pWindow, glfwKey);
-    if (state == GLFW_PRESS) {
-        keyStateHolder.isButtonPressed.set(glfwKey, true);
+    const bool isButtonPressed = state == GLFW_PRESS;
+    const bool isStateChanged = keyStateHolder.isButtonPressed.test(glfwKey) == GLFW_PRESS && !isButtonPressed;
+    keyStateHolder.isButtonPressed.set(glfwKey, isButtonPressed);
+    if (isStateChanged) {
+        keyStateHolder.isButtonWasPressed.flip(glfwKey);
     }
-    if (state == GLFW_RELEASE) {
-        keyStateHolder.isButtonPressed.set(glfwKey, false);
-    }
-}
-
-SHORT_KEY_STATE INPUT_SYSTEM::CreateShortKeyState()
-{
-    SHORT_KEY_STATE result;
-    result.isButtonPressed[0] = keyStateHolder.isButtonPressed[GLFW_KEY_W];
-    result.isButtonPressed[1] = keyStateHolder.isButtonPressed[GLFW_KEY_A];
-    result.isButtonPressed[2] = keyStateHolder.isButtonPressed[GLFW_KEY_S];
-    result.isButtonPressed[3] = keyStateHolder.isButtonPressed[GLFW_KEY_D];
-    return result;
+    return isStateChanged;
 }
 

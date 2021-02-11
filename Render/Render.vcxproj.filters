@@ -53,9 +53,6 @@
     <ClInclude Include="Headers\materialManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Headers\meshManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Headers\renderTargetManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -65,17 +62,11 @@
     <ClInclude Include="Headers\shaderManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Headers\textureManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Headers\vulkanDriver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Headers\windowSystem.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Headers\renderPassOpaque.h">
-      <Filter>RenderPasses</Filter>
     </ClInclude>
     <ClInclude Include="Headers\renderPassResolve.h">
       <Filter>RenderPasses</Filter>
@@ -101,6 +92,12 @@
     <ClInclude Include="Headers\vulkanResourcesDescription.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Headers\renderPassFillGBuffer.h">
+      <Filter>RenderPasses</Filter>
+    </ClInclude>
+    <ClInclude Include="Headers\renderPassShadeGBuffer.h">
+      <Filter>RenderPasses</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Sources\geometry.cpp">
@@ -124,9 +121,6 @@
     <ClCompile Include="Sources\gameCameraSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Sources\meshManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Sources\renderTargetManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -136,17 +130,11 @@
     <ClCompile Include="Sources\shaderManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Sources\textureManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Sources\vulkanDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Sources\windowSystem.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Sources\renderPassOpaque.cpp">
-      <Filter>RenderPasses</Filter>
     </ClCompile>
     <ClCompile Include="Sources\renderPassResolve.cpp">
       <Filter>RenderPasses</Filter>
@@ -163,21 +151,18 @@
     <ClCompile Include="Sources\visibilitySystem.cpp">
       <Filter>RenderPasses</Filter>
     </ClCompile>
+    <ClCompile Include="Sources\renderPassFillGBuffer.cpp">
+      <Filter>RenderPasses</Filter>
+    </ClCompile>
+    <ClCompile Include="Sources\renderPassShadeGBuffer.cpp">
+      <Filter>RenderPasses</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Shaders\uiPS.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Shaders\uiVS.fx">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Shaders\baseCommon.fx">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Shaders\basePS.fx">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Shaders\baseVS.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenPS.fx">
@@ -204,5 +189,28 @@
     <FxCompile Include="..\Shaders\commonFunctions.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\Shaders\fillGBufferPS.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\fillGBufferVS.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadeGBufferPS.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadeGBufferVS.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\fillGBufferCommon.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadeGBufferCommon.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\Shaders\commonLighting.fx">
+      <Filter>Shaders</Filter>
+    </Text>
   </ItemGroup>
 </Project>

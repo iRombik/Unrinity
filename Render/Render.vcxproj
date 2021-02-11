@@ -31,9 +31,9 @@
     <ClInclude Include="Headers\geometry.h" />
     <ClInclude Include="Headers\gui.h" />
     <ClInclude Include="Headers\materialManager.h" />
-    <ClInclude Include="Headers\meshManager.h" />
     <ClInclude Include="Headers\render.h" />
-    <ClInclude Include="Headers\renderPassOpaque.h" />
+    <ClInclude Include="Headers\renderPassFillGBuffer.h" />
+    <ClInclude Include="Headers\renderPassShadeGBuffer.h" />
     <ClInclude Include="Headers\renderPassResolve.h" />
     <ClInclude Include="Headers\renderPassShadow.h" />
     <ClInclude Include="Headers\renderTargetEnum.h" />
@@ -41,7 +41,6 @@
     <ClInclude Include="Headers\resourceSystem.h" />
     <ClInclude Include="Headers\shaderManager.h" />
     <ClInclude Include="Headers\terrain.h" />
-    <ClInclude Include="Headers\textureManager.h" />
     <ClInclude Include="Headers\visibilitySystem.h" />
     <ClInclude Include="Headers\vulkanDriver.h" />
     <ClInclude Include="Headers\vulkanResourcesDescription.h" />
@@ -55,60 +54,90 @@
     <ClCompile Include="Sources\gameCameraSystem.cpp" />
     <ClCompile Include="Sources\geometry.cpp" />
     <ClCompile Include="Sources\gui.cpp" />
-    <ClCompile Include="Sources\meshManager.cpp" />
     <ClCompile Include="Sources\render.cpp" />
-    <ClCompile Include="Sources\renderPassOpaque.cpp" />
+    <ClCompile Include="Sources\renderPassFillGBuffer.cpp" />
+    <ClCompile Include="Sources\renderPassShadeGBuffer.cpp" />
     <ClCompile Include="Sources\renderPassResolve.cpp" />
     <ClCompile Include="Sources\renderPassShadow.cpp" />
     <ClCompile Include="Sources\renderTargetManager.cpp" />
     <ClCompile Include="Sources\resourceSystem.cpp" />
     <ClCompile Include="Sources\shaderManager.cpp" />
     <ClCompile Include="Sources\terrain.cpp" />
-    <ClCompile Include="Sources\textureManager.cpp" />
     <ClCompile Include="Sources\visibilitySystem.cpp" />
     <ClCompile Include="Sources\vulkanDriver.cpp" />
     <ClCompile Include="Sources\windowSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Shaders\baseCommon.fx">
+    <FxCompile Include="..\Shaders\shadeGBufferCommon.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="..\Shaders\basePS.fx">
+    <FxCompile Include="..\Shaders\fillGBufferCommon.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="..\Shaders\baseVS.fx">
+    <FxCompile Include="..\Shaders\shadeGBufferPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\shadeGBufferVS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\common.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\commonFunctions.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\fillGBufferPS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\fillGBufferVS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\fullscreenVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\shadowVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\terrainCommon.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\terrainPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\terrainVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\uiPS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\uiVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\Shaders\commonLighting.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </Text>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -257,8 +286,9 @@
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Libs\stb;C:\VulkanSDK\1.2.131.1\Include;$(SolutionDir)Libs\glfw\include;$(SolutionDir)ECS\Headers;$(SolutionDir)Render\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Libs\gli\gli;C:\VulkanSDK\1.2.131.1\Include;$(SolutionDir)Libs\glfw\include;$(SolutionDir)ECS\Headers;$(SolutionDir)Render\Headers;$(SolutionDir)Libs\glm;$(SolutionDir)Libs\imgui;$(SolutionDir)Libs\DXC\include;$(SolutionDir)Libs\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -267,7 +297,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.131.1\Lib;$(SolutionDir)Libs\glfw\lib-vc2015;$(SolutionDir)\$(Configuration)\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.131.1\Lib;$(SolutionDir)Libs\glfw\lib-vc2015;$(SolutionDir)\$(Configuration)\lib\;$(SolutionDir)Libs\DXC\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>vulkan-1.lib;glfw3.lib;ECS.lib</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
