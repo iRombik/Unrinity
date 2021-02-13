@@ -18,6 +18,7 @@
 #include "dxc/Support/dxcapi.use.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringMap.h"
 
 namespace hlsl {
 namespace options {
@@ -46,6 +47,9 @@ public:
   /// checks that some error message does not occur, for example.
   bool AllowEmptyInput;
 
+  /// VariableTable - This holds all the current filecheck variables.
+  llvm::StringMap<std::string> VariableTable;
+
   /// String to read in place of standard input.
   std::string InputForStdin;
   /// Output stream.
@@ -67,21 +71,21 @@ struct FileRunCommandResult {
   static inline FileRunCommandResult Success() {
     FileRunCommandResult result;
     result.ExitCode = 0;
-    return std::move(result);
+    return result;
   }
 
   static inline FileRunCommandResult Success(std::string StdOut) {
     FileRunCommandResult result;
     result.ExitCode = 0;
     result.StdOut = std::move(StdOut);
-    return std::move(result);
+    return result;
   }
 
   static inline FileRunCommandResult Error(int ExitCode, std::string StdErr) {
     FileRunCommandResult result;
     result.ExitCode = ExitCode;
     result.StdErr = std::move(StdErr);
-    return std::move(result);
+    return result;
   }
 
   static inline FileRunCommandResult Error(std::string StdErr) {
