@@ -26,7 +26,6 @@ public:
     const VkShaderModule& GetVertexShader(uint8_t shaderId) const;
     const VkShaderModule& GetPixelShader(uint8_t shaderId) const;
 private:
-    size_t GetShaderId(const std::string& shaderName) const;
     void   InitShaderDecriptorLayoutTable();
     void   CompileShader(uint8_t shaderId, EFFECT_DATA::SHADER_TYPE type) const;
 private:

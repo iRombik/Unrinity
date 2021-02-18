@@ -8,28 +8,42 @@ float ShadowFactorPCF(Texture2D texShadowMap, float4 worldPos) {
         return 1.f;
     }
     float  dirLightDepth = dirLightSmPos.z / dirLightSmPos.w;
-
-    float center = 0.4f;
-    float cross = 0.3f;
-    float diag = 0.2f;
+/*
+    float center = 0.6f;
+    float cross = 0.8f;
+    float diag = 0.6f;
 
     float3x3 coefs = {
         {diag, cross, diag},
         {cross, center, cross},
         {diag, cross, diag}
     };
+*/
 
-    float d = 1.f / 2024.f;
     float shadowParam = 0.f;
     float count = 0.f;
-    for (int i = -1; i <= 1; i++) {
-        for (int j = -1; j <= 1; j++) {
-            float2 offset = float2(i * d, j * d);
-            shadowParam += coefs[i + 1][j + 1] * texShadowMap.SampleCmpLevelZero(cmpPointClampSampler, dirLightSmUV + offset, dirLightDepth).r;
-            count += coefs[i + 1][j + 1];
+    float d = 1.f / 2024.f;
+    if (debugDrawMode == 1) {
+        float2 offset = (frac(dirLightSmPos.xy * 0.5) > 0.25);  // mod 
+        offset.y += offset.x;  
+        // y ^= x in floating point 
+        if (offset.y > 1.1)   offset.y = 0;
+        shadowParam = texShadowMap.SampleCmpLevelZero(cmpLinearClampSampler, dirLightSmUV + d * (offset + float2(-1.5, 0.5)), dirLightDepth).r;;
+        shadowParam+= texShadowMap.SampleCmpLevelZero(cmpLinearClampSampler, dirLightSmUV + d * (offset + float2( 0.5, 0.5)), dirLightDepth).r;;
+        shadowParam+= texShadowMap.SampleCmpLevelZero(cmpLinearClampSampler, dirLightSmUV + d * (offset + float2(-1.5,-1.5)), dirLightDepth).r;;
+        shadowParam+= texShadowMap.SampleCmpLevelZero(cmpLinearClampSampler, dirLightSmUV + d * (offset + float2( 0.5,-1.5)), dirLightDepth).r;;
+        count = 4.f;
+    } else if (debugDrawMode == 0) {
+        float fromTo = 1.5f;
+        for (float i = -fromTo; i <= fromTo; i += 1.f) {
+            for (float j = -fromTo; j <= fromTo; j += 1.f) {
+                float2 offset = float2(i * d, j * d);
+                shadowParam += texShadowMap.SampleCmpLevelZero(cmpLinearClampSampler, dirLightSmUV + offset, dirLightDepth).r;
+                count += 1.f;
+            }
+        
         }
     }
 
     return shadowParam / count;
-    //Gather
 }

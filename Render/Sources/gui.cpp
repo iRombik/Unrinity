@@ -472,8 +472,11 @@ void GUI_SYSTEM::DescribeInterface()
         cameraTransform->position.x, cameraTransform->position.y, cameraTransform->position.z
     );
 
-    bool isButtonStateChanged = ImGui::Checkbox("Show lights", &m_showLights);
-    if (isButtonStateChanged) {
+    if (ImGui::Button("Change draw mode")) {
+        gDebugVariables.drawMode = 1 - gDebugVariables.drawMode;
+    }
+
+    if (ImGui::Checkbox("Show lights", &m_showLights)) {
         for (auto light : pointLights) {
             if (m_showLights) {
                 //ECS::pEcsCoordinator->AddComponentToEntity(light, lightDebugMesh);
@@ -492,7 +495,7 @@ void GUI_SYSTEM::DescribeInterface()
         TRANSFORM_COMPONENT* dirLightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
         DIRECTIONAL_LIGHT_COMPONENT* dirLightComponent = ECS::pEcsCoordinator->GetComponent<DIRECTIONAL_LIGHT_COMPONENT>(directionalLight);
 
-        ImGui::InputFloat3("Position", (float*)&dirLightTransform->position, 3);
+        ImGui::InputFloat3("Position", (float*)&dirLightTransform->position);
         ImGui::SliderFloat("Intensity", &dirLightComponent->intensity, 0.0f, 10.0f);
         ImGui::ColorEdit3("Color", (float*)&dirLightComponent->color);
     }
@@ -500,7 +503,7 @@ void GUI_SYSTEM::DescribeInterface()
         TRANSFORM_COMPONENT* lightTransform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(pointLights[0]);
         POINT_LIGHT_COMPONENT* lightComponent = ECS::pEcsCoordinator->GetComponent<POINT_LIGHT_COMPONENT>(pointLights[0]);
 
-        ImGui::InputFloat3("Position", (float*)&lightTransform->position, 3);
+        ImGui::InputFloat3("Position", (float*)&lightTransform->position);
         ImGui::SliderFloat("Intensity", &lightComponent->intensity, 0.0f, 10.0f);
         ImGui::SliderFloat("Area light", &lightComponent->areaLight, 50.0f, 10000.0f);
         ImGui::ColorEdit3("Color", (float*)&lightComponent->color);
@@ -509,6 +512,12 @@ void GUI_SYSTEM::DescribeInterface()
     if (ImGui::CollapsingHeader("Dynamic SM depth bias")) {
         ImGui::SliderFloat("Constant", &DEPTH_BIAS_PARAMS.x, 0.0f, 10.0f);
         ImGui::SliderFloat("Slope", &DEPTH_BIAS_PARAMS.y, 0.0f, 10.0f);
+    }
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("SSAO params")) {
+        ImGui::Checkbox("Turn off ssao", &gSSAODebugVariables.turnOffSSAO);
+        ImGui::SliderFloat("Bias", &gSSAODebugVariables.bias, 0.001f, 0.5f, "%.3f");
+        ImGui::SliderFloat("Radius", &gSSAODebugVariables.radius, 0.1f, 10.0f);
     }
     ImGui::Separator();
     ImGui::Combo("RT debug view", &m_debugRT, RENDER_TARGET_NAME, RENDER_TARGET_ID::RT_LAST + 1);

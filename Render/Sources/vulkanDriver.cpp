@@ -458,7 +458,8 @@ VkResult VULKAN_DRIVER_INTERFACE::CreateRenderTarget(VULKAN_TEXTURE_CREATE_DATA&
     viewInfo.image = createdTexture.image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = createData.format;;
-    viewInfo.subresourceRange.aspectMask = CastFormatToAspect(createData.format);
+    //todo
+    viewInfo.subresourceRange.aspectMask = CastFormatToAspect(createData.format) & ~VK_IMAGE_ASPECT_STENCIL_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -1826,20 +1827,24 @@ void VULKAN_DRIVER_INTERFACE::DestroySampler(VkSampler& sampler)
 
 VkResult VULKAN_DRIVER_INTERFACE::InitSamplers()
 {
-    ASSERT(NUM_SAMPLERS < 8 && NUM_SAMPLERS == EFFECT_DATA::SAMPLER_LAST);
-    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
-        VK_COMPARE_OP_ALWAYS, 16.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_LINEAR_ANISO]);
+    ASSERT(EFFECT_DATA::SAMPLER_LAST <= 8);
+    CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_POINT]);
     CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
         VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_LINEAR]);
+    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_COMPARE_OP_ALWAYS, 16.f, m_samplers[EFFECT_DATA::SAMPLER_REPEAT_LINEAR_ANISO]);
+    CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_POINT]);
     CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_LINEAR]);
     CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        VK_COMPARE_OP_ALWAYS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_POINT]);
-    CreateSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         VK_COMPARE_OP_LESS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_POINT_CMP]);
+    CreateSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        VK_COMPARE_OP_LESS, 0.f, m_samplers[EFFECT_DATA::SAMPLER_CLAMP_LINEAR_CMP]);
 
     const int FIRST_SAMPLER_BINDING_SLOT = 120;
-    for (int i = 0; i < NUM_SAMPLERS; i++) {
+    for (int i = 0; i < EFFECT_DATA::SAMPLER_LAST; i++) {
         m_samplerDescriptors[i].first = FIRST_SAMPLER_BINDING_SLOT + i;
         m_samplerDescriptors[i].second.sampler = m_samplers[i];
     }
@@ -2077,7 +2082,7 @@ void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseSurfaceFormat(const std::vector
 
 void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
 {
-    presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;// VK_PRESENT_MODE_FIFO_KHR;
+    presentMode = VK_PRESENT_MODE_FIFO_KHR; //VK_PRESENT_MODE_IMMEDIATE_KHR
 }
 
 void SWAP_CHAIN::SWAP_CHAIN_CREATE_PARAMS::ChooseExtent(const VkSurfaceCapabilitiesKHR & capabilities)

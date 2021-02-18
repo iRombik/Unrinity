@@ -73,46 +73,63 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
     }
 
     if (!fileLoaded) {
-        WARNING_MSG(formatString("Can't open %s mesh file!", levelName.c_str()).c_str());
+        WARNING_MSG(formatString("Can't open %s mesh file! %s\n", levelName.c_str(), error.c_str()).c_str());
+
         return false;
     }
 
+    uint32_t storeMeshOffset = m_meshNum;
+    uint32_t storeMeshHolderOffset = m_meshHolderNum;
+    uint32_t storeTextureOffset = m_textureNum;
+    uint32_t storeMaterialOffset = m_materialNum;
+    uint32_t storeNodeOffset = m_nodeNum;
+
+    {
+        size_t numOfPrimitiveMeshes = 0;
+        for (size_t meshId = 0; meshId < gltfModel.meshes.size(); meshId++) {
+            numOfPrimitiveMeshes += gltfModel.meshes[meshId].primitives.size();
+        }
+        m_meshNum += numOfPrimitiveMeshes;
+        m_meshHolderNum += gltfModel.meshes.size();
+        m_textureNum += gltfModel.images.size();
+        m_materialNum += gltfModel.materials.size();
+        m_nodeNum += gltfModel.nodes.size();
+    }
+
     std::string baseDir = tinygltf::GetBaseDir(levelName);
-    m_textureList.resize(gltfModel.images.size());
     for (size_t texId = 0; texId < gltfModel.images.size(); texId++) {
         const tinygltf::Image& image = gltfModel.images[texId];
-        bool isTextureLoaded = LoadTexture(image.uri, baseDir, m_textureList[texId]);
+        bool isTextureLoaded = LoadTexture(image.uri, baseDir, m_textureList[storeTextureOffset + texId]);
         ASSERT(isTextureLoaded);
     }
 
-    m_materialsList.resize(gltfModel.materials.size() + 1);
     for (size_t materialId = 0; materialId < gltfModel.materials.size(); materialId++) {
         const tinygltf::Material& gltfMaterial = gltfModel.materials[materialId];
 
-        MATERIAL_COMPONENT& material = m_materialsList[materialId];
+        MATERIAL_COMPONENT& material = m_materialsList[storeMaterialOffset + materialId];
 
         material.isDoubleSided = gltfMaterial.doubleSided;
         material.baseColor = glm::make_vec4(gltfMaterial.pbrMetallicRoughness.baseColorFactor.data());
 
         if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index != -1) {
-            material.pAlbedoTex = &m_textureList[gltfMaterial.pbrMetallicRoughness.baseColorTexture.index];
+            material.pAlbedoTex = &m_textureList[storeTextureOffset + gltfMaterial.pbrMetallicRoughness.baseColorTexture.index];
         } else {
             material.pAlbedoTex = &m_defaultTextureList[DEFAULT_RED_TEXTURE];
         }
 
         if (gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index != -1) {
-            material.pMetalRoughnessTex = &m_textureList[gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index];
+            material.pMetalRoughnessTex = &m_textureList[storeTextureOffset + gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index];
         } else {
             material.pMetalRoughnessTex = &m_defaultTextureList[DEFAULT_GREEN_TEXTURE];
         }
 
         if (gltfMaterial.normalTexture.index != -1) {
-            material.pNormalTex = &m_textureList[gltfMaterial.normalTexture.index];
+            material.pNormalTex = &m_textureList[storeTextureOffset + gltfMaterial.normalTexture.index];
         } else {
             material.pNormalTex = &m_defaultTextureList[DEFAULT_NORMAL_TEXTURE];
         }
         if (gltfMaterial.emissiveTexture.index != -1) {
-            material.pEmissiveTex = &m_textureList[gltfMaterial.emissiveTexture.index];
+            material.pEmissiveTex = &m_textureList[storeTextureOffset + gltfMaterial.emissiveTexture.index];
         } else {
             material.pEmissiveTex = &m_defaultTextureList[DEFAULT_BLACK_TEXTURE];
         }
@@ -166,18 +183,13 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
 
 
     //load meshes
-    size_t nufOfPrimitiveMeshes = 0;
-    for (size_t meshId = 0; meshId < gltfModel.meshes.size(); meshId++) {
-        nufOfPrimitiveMeshes += gltfModel.meshes[meshId].primitives.size();
-    }
-    m_meshList.resize(nufOfPrimitiveMeshes);
-    m_meshHolder.resize(gltfModel.meshes.size());
-    size_t primitiveMeshId = 0;
     for (size_t meshId = 0; meshId < gltfModel.meshes.size(); meshId++) {
         const tinygltf::Mesh& gltfMesh = gltfModel.meshes[meshId];
-        m_meshHolder[meshId].meshPrimitives.resize(gltfMesh.primitives.size());
+        MESH_HOLDER_COMPONENT& meshHolder = m_meshHolderList[storeMeshHolderOffset + meshId];
+        meshHolder.meshPrimitives.resize(gltfMesh.primitives.size());
         for (size_t primitiveId = 0; primitiveId < gltfMesh.primitives.size(); primitiveId++) {
             const tinygltf::Primitive& gltfPrimitive = gltfMesh.primitives[primitiveId];
+            ASSERT(gltfPrimitive.mode == TINYGLTF_MODE_TRIANGLES);
 
             const unsigned char* bufferPos = nullptr;
             size_t posByteStride = 0;
@@ -188,7 +200,7 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
             const unsigned char* bufferTexCoordSet1 = nullptr;
             size_t uv1ByteStride = 0;
             size_t indexCount = 0;
-            bool isMeshHasIndexes = gltfPrimitive.indices > 0;
+            bool isMeshHasIndexes = true;
 
             const tinygltf::Accessor& posAccessor = gltfModel.accessors[gltfPrimitive.attributes.find("POSITION")->second];
             const tinygltf::BufferView& posView = gltfModel.bufferViews[posAccessor.bufferView];
@@ -308,31 +320,31 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
                 //DestroyMesh(primitiveMesh);
                 return false;
             }
-            m_meshList[primitiveMeshId] = mesh;
+            m_meshList[storeMeshOffset] = mesh;
 
-            MESH_PRIMITIVE& primitiveMesh = m_meshHolder[meshId].meshPrimitives[primitiveId];
+            MESH_PRIMITIVE& primitiveMesh = meshHolder.meshPrimitives[primitiveId];
             primitiveMesh.aabb.minPos = glm::make_vec3(posAccessor.minValues.data());
             primitiveMesh.aabb.maxPos = glm::make_vec3(posAccessor.maxValues.data());
-            primitiveMesh.pMaterial = &m_materialsList[gltfPrimitive.material];
-            primitiveMesh.pMesh = &m_meshList[primitiveMeshId];
-            primitiveMesh.pParentHolder = &m_meshHolder[meshId];
+            primitiveMesh.pMaterial = &m_materialsList[storeMaterialOffset + gltfPrimitive.material];
+            primitiveMesh.pMesh = &m_meshList[storeMeshOffset];
+            primitiveMesh.pParentHolder = &meshHolder;
 
             ECS::ENTITY_TYPE primEntity = ECS::pEcsCoordinator->CreateEntity();
             ECS::pEcsCoordinator->AddComponentToEntity(primEntity, primitiveMesh);
             ECS::pEcsCoordinator->AddComponentToEntity(primEntity, RENDERED_COMPONENT());
 
-            m_meshHolder[meshId].aabb.minPos = glm::min(m_meshHolder[meshId].aabb.minPos, primitiveMesh.aabb.minPos);
-            m_meshHolder[meshId].aabb.maxPos = glm::min(m_meshHolder[meshId].aabb.maxPos, primitiveMesh.aabb.maxPos);
-            primitiveMeshId++;
+            meshHolder.aabb.minPos = glm::min(meshHolder.aabb.minPos, primitiveMesh.aabb.minPos);
+            meshHolder.aabb.maxPos = glm::min(meshHolder.aabb.maxPos, primitiveMesh.aabb.maxPos);
+
+            storeMeshOffset++;
         }
     }
 
     const tinygltf::Scene& scene = gltfModel.scenes[gltfModel.defaultScene > -1 ? gltfModel.defaultScene : 0];
-    m_nodeList.resize(scene.nodes.size());
     for (size_t nodeId = 0; nodeId < scene.nodes.size(); nodeId++) {
         const tinygltf::Node& gltfNode = gltfModel.nodes[scene.nodes[nodeId]];
 
-        NODE_COMPONENT& node = m_nodeList[nodeId];
+        NODE_COMPONENT& node = m_nodeList[storeNodeOffset + nodeId];
         if (gltfNode.translation.size() == 3) {
             node.translation = glm::make_vec3(gltfNode.translation.data());
         } 
@@ -346,8 +358,8 @@ bool RESOURCE_SYSTEM::LoadModel (const std::string& modelName)
             node.matrix = glm::make_mat4x4(gltfNode.matrix.data());
         }
         if (gltfNode.mesh > -1) {
-            m_meshHolder[gltfNode.mesh].pParentsNodes.push_back(&m_nodeList[nodeId]);
-            node.mesh = &m_meshHolder[gltfNode.mesh];
+            m_meshHolderList[storeMeshHolderOffset + gltfNode.mesh].pParentsNodes.push_back(&node);
+            node.mesh = &m_meshHolderList[storeMeshHolderOffset + gltfNode.mesh];
         }
     }
 

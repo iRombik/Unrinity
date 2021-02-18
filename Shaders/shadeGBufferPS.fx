@@ -7,7 +7,8 @@
 [[vk::binding(22)]] Texture2D texGBufferMetalnessRoughness;
 [[vk::binding(23)]] Texture2D texGBufferWorldPos;
 [[vk::binding(24)]] Texture2D texShadowMap;
-//[[vk::binding(24)]] Texture2D texDepth;
+[[vk::binding(25)]] Texture2D texDepth;
+[[vk::binding(26)]] Texture2D texSSAOMask;
 
 float DistributionGGX(float3 N, float3 H, float a)
 {
@@ -57,11 +58,12 @@ float3 FresnelSchlick(float cosTheta, float3 F0)
 }
 
 void main(in VERTEX_OUTPUT vertexOut, out PIXEL_OUTPUT pixelOut) {
-    float4 albedo = texGBufferAlbedo.Sample(anisoSampler, vertexOut.texCoord);
-    float3 worldNormal = texGBufferNormal.Sample(anisoSampler, vertexOut.texCoord).rgb;
-    float roughness = texGBufferMetalnessRoughness.Sample(anisoSampler, vertexOut.texCoord).g;
-    float3 metalness = texGBufferMetalnessRoughness.Sample(anisoSampler, vertexOut.texCoord).rrr;
-    float4 worldPos = texGBufferWorldPos.Sample(anisoSampler, vertexOut.texCoord);
+    float4 albedo = texGBufferAlbedo.Sample(pointSampler, vertexOut.texCoord);
+    float3 worldNormal = texGBufferNormal.Sample(pointSampler, vertexOut.texCoord).rgb;
+    float roughness = texGBufferMetalnessRoughness.Sample(pointSampler, vertexOut.texCoord).g;
+    float3 metalness = texGBufferMetalnessRoughness.Sample(pointSampler, vertexOut.texCoord).rrr;
+    float4 worldPos = texGBufferWorldPos.Sample(pointSampler, vertexOut.texCoord);
+    float  ssaoOcclusion = texSSAOMask.Sample(pointSampler, vertexOut.texCoord);
 
     float3 N = normalize(worldNormal);
     float3 V = normalize(viewPos - worldPos.xyz);
@@ -102,7 +104,7 @@ void main(in VERTEX_OUTPUT vertexOut, out PIXEL_OUTPUT pixelOut) {
     }
     
 
-    Lo += albedo.rgb * ambientColor;
+    Lo += albedo.rgb * ambientColor * ssaoOcclusion;
 
     float3 color = Lo;
     pixelOut.color = float4(color, 1.0f);

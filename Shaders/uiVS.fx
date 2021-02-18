@@ -15,5 +15,5 @@ void main(in VERTEX_INPUT vertexInput, out VERTEX_OUTPUT vertexOutput, out float
 {
     vertexOutput.color = vertexInput.color;
 	vertexOutput.uv = vertexInput.uv;
-    projPos = float4(vertexInput.pos * scale + translate, 0.f, 1.f);
+    projPos = float4(vertexInput.pos * uiScale + uiTranslate, 0.f, 1.f);
 }

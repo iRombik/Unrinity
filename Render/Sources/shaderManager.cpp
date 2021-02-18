@@ -16,6 +16,8 @@ namespace EFFECT_DATA {
         "fillGBuffer",
         "shadeGBuffer",
         "shadow",
+        "ssao",
+        "ssaoBlend",
         "terrain",
         "ui"
     };
@@ -69,6 +71,20 @@ void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
     m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(23, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(24, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
     m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(25, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrShadeGBufferId].push_back(CreateLayoutBinding(26, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+    const size_t shrSSAOId = EFFECT_DATA::SHR_SSAO;
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_CUSTOM], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(21, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(25, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOId].push_back(CreateLayoutBinding(31, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+    const size_t shrSSAOBlendId = EFFECT_DATA::SHR_SSAO_BLEND;
+    m_shaderDesc[shrSSAOBlendId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_COMMON_DATA], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOBlendId].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_CUSTOM], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT));
+    m_shaderDesc[shrSSAOBlendId].push_back(CreateLayoutBinding(30, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     const size_t shrShadow = EFFECT_DATA::SHR_SHADOW;
     m_shaderDesc[shrShadow].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_LIGHTS], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT));
@@ -84,7 +100,8 @@ void SHADER_MANAGER::InitShaderDecriptorLayoutTable()
     m_shaderDesc[shrUiId].push_back(CreateLayoutBinding(21, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_SHADER_STAGE_FRAGMENT_BIT));
 
     for (int i = 0; i < EFFECT_DATA::SHR_LAST; i++) {
-        for (int s = 0; s < NUM_SAMPLERS; s++) {
+        m_shaderDesc[i].push_back(CreateLayoutBinding(EFFECT_DATA::CONST_BUFFERS_SLOT[EFFECT_DATA::CB_DEBUG], VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL));
+        for (int s = 0; s < EFFECT_DATA::SAMPLER_LAST; s++) {
             m_shaderDesc[i].push_back(CreateLayoutBinding(120 + s, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_ALL_GRAPHICS));
         }
     }
@@ -105,10 +122,6 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
     //compile spir-v
     commandLineParams.push_back(L" -spirv");
     commandLineParams.push_back(L"-Zi");
-// #ifdef OUT_DEBUG_INFO
-//     //for render doc pixel debugging
-//     commandLineParams.push_back(L"-fspv-extension=SPV_GOOGLE_user_type");
-// #endif
     //file
     const std::wstring path = absolutePath + shaderName + typeName + L".fx";
     commandLineParams.push_back(std::wstring(path.begin(), path.end()));
@@ -165,34 +178,17 @@ void SHADER_MANAGER::CompileShader(uint8_t passId, EFFECT_DATA::SHADER_TYPE type
     CloseHandle(pi.hThread);
 }
 
-size_t SHADER_MANAGER::GetShaderId(const std::string& shaderName) const
-{
-    //todo: map
-    for (size_t shaderId = 0; shaderId < EFFECT_DATA::SHR_LAST; shaderId++) {
-        const std::string& name = EFFECT_DATA::SHADER_NAMES[shaderId];
-        if (name == shaderName) {
-            return shaderId;
-        }
-    }
-    return EFFECT_DATA::SHR_LAST;
-}
-
 
 void SHADER_MANAGER::LoadShaders()
 {
-    const bool isDXC = true;
     for (int passId = 0; passId < EFFECT_DATA::SHADER_ID::SHR_LAST; passId++) {
         for (int typeId = 0; typeId < (int)EFFECT_DATA::SHADER_TYPE::LAST; typeId++) {
             EFFECT_DATA::SHADER_TYPE shaderType = (EFFECT_DATA::SHADER_TYPE)typeId;
             const std::string& shaderName = EFFECT_DATA::SHADER_NAMES[passId];
             const std::string& typeName = EFFECT_DATA::SHADER_TYPE_TO_NAME_CAST[shaderType];
             std::string filePath = SHADERS_FOLDER;
-            if (isDXC) {
-                CompileShader(passId, shaderType);
-                filePath += shaderName + "." + typeName;
-            } else {
-                ASSERT(false);
-            }
+            CompileShader(passId, shaderType);
+            filePath += shaderName + "." + typeName;
             std::vector<char> shaderRawData = std::move(ReadFile(filePath));
             SHADER_MODULE createdShader;
             bool isShaderCreated = pDrvInterface->CreateShader(shaderRawData, createdShader.shader);

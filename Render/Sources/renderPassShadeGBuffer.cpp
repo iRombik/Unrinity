@@ -13,6 +13,8 @@
 #include "resourceSystem.h"
 #include "renderTargetManager.h"
 
+#include "vulkanDriver.h"
+
 void RENDER_PASS_SHADE_GBUFFER::Init()
 {
 }
@@ -24,8 +26,9 @@ void RENDER_PASS_SHADE_GBUFFER::BeginRenderPass()
     pRenderTargetManager->SetTextureAsSRV(RT_GBUFFER_NORMAL, 21);
     pRenderTargetManager->SetTextureAsSRV(RT_GBUFFER_METALL_ROUGHNESS, 22);
     pRenderTargetManager->SetTextureAsSRV(RT_GBUFFER_WORLD_POS, 23);
-    //pRenderTargetManager->SetTextureAsSRV(RT_DEPTH_BUFFER, 24);
     pRenderTargetManager->SetTextureAsSRV(RT_SHADOW_MAP, 24);
+    pRenderTargetManager->SetTextureAsSRV(RT_DEPTH_BUFFER, 25);
+    pRenderTargetManager->SetTextureAsSRV(RT_SSAO_MASK_BLENDED, 26);
     pDrvInterface->BeginRenderPass();
 }
 
@@ -53,6 +56,9 @@ void RENDER_PASS_SHADE_GBUFFER::Render()
     dynBufferData.fTime = 0.f;
     dynBufferData.vViewPos = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(gameCamera)->position;
     dynBufferData.mViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewProjMatrix;
+    dynBufferData.mProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->projMatrix;
+    dynBufferData.mProjInv = glm::inverse(ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->projMatrix);
+    dynBufferData.mView = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_COMMON_DATA, &dynBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_COMMON_DATA]);
 
     EFFECT_DATA::CB_LIGHTS_STRUCT lightBufferData;
@@ -65,10 +71,9 @@ void RENDER_PASS_SHADE_GBUFFER::Render()
     lightBufferData.pointLight0ViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(pointLights[0])->viewProjMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_LIGHTS, &lightBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_LIGHTS]);
 
-    pRenderTargetManager->ReturnRenderTarget(RT_SHADOW_MAP);
-
     pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
     pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_LIGHTS);
+    pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_DEBUG);
 
     pDrvInterface->SetVertexFormat(EMPTY_VERTEX::formatId);
     pDrvInterface->DrawFullscreen();

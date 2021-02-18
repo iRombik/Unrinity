@@ -11,8 +11,10 @@ namespace EFFECT_DATA {
         SHR_FILL_GBUFFER = 1,
         SHR_SHADE_GBUFFER = 2,
         SHR_SHADOW = 3,
-        SHR_TERRAIN = 4,
-        SHR_UI = 5,
+        SHR_SSAO = 4,
+        SHR_SSAO_BLEND = 5,
+        SHR_TERRAIN = 6,
+        SHR_UI = 7,
         SHR_LAST
     };
 
@@ -26,11 +28,13 @@ namespace EFFECT_DATA {
 namespace EFFECT_DATA
 {
     enum SAMPLERS {
-        SAMPLER_REPEAT_LINEAR_ANISO = 0,
+        SAMPLER_REPEAT_POINT        = 0,
         SAMPLER_REPEAT_LINEAR       = 1,
-        SAMPLER_CLAMP_LINEAR        = 2,
+        SAMPLER_REPEAT_LINEAR_ANISO = 2,
         SAMPLER_CLAMP_POINT         = 3,
-        SAMPLER_CLAMP_POINT_CMP     = 4,
+        SAMPLER_CLAMP_LINEAR        = 4,
+        SAMPLER_CLAMP_POINT_CMP     = 5,
+        SAMPLER_CLAMP_LINEAR_CMP    = 6,
         SAMPLER_LAST
     };
 }
@@ -44,6 +48,7 @@ namespace EFFECT_DATA
         CB_MATERIAL = 2, //per draw update
         CB_TERRAIN = 3, //per frame update
         CB_UI,
+        CB_CUSTOM,
         CB_DEBUG,
         CB_LAST
     };
@@ -52,6 +57,9 @@ namespace EFFECT_DATA
         alignas(16) glm::vec3 vViewPos;
         float                 fTime;
         alignas(16) glm::mat4 mViewProj;
+        alignas(16) glm::mat4 mProj;
+        alignas(16) glm::mat4 mProjInv;
+        alignas(16) glm::mat4 mView;
     };
 
     struct CB_LIGHTS_STRUCT {
@@ -81,9 +89,16 @@ namespace EFFECT_DATA
         glm::vec2 scale;
         glm::vec2 translate;
     };
+    
+    struct CB_CUSTOM_STRUCT {
+        glm::vec4 cb0;
+        glm::vec4 cb1;
+        glm::vec4 cb2;
+        glm::vec4 cb3;
+    };
 
     struct CB_DEBUG_STRUCT {
-        int visualizeDataType;
+        int drawMode;
     };
 
     const uint32_t CONST_BUFFERS_SIZE[] =
@@ -93,6 +108,7 @@ namespace EFFECT_DATA
         sizeof(CB_MATERIAL_STRUCT),
         sizeof(CB_TERRAIN_STRUCT),
         sizeof(CB_UI_STRUCT),
+        sizeof(CB_CUSTOM_STRUCT),
         sizeof(CB_DEBUG_STRUCT),
     };
 
@@ -103,6 +119,7 @@ namespace EFFECT_DATA
         2,
         5,
         6,
+        4,
         15,
     };
 }

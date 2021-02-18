@@ -79,12 +79,19 @@ private:
     void CreateDefalutTextures();
 private:
     const std::string CACHE_TEXTURE_DIR = "../Media/Textures/_textureCache/";
+    static const uint32_t MAX_ARRAY_SIZE = 1024;
 
-    std::vector<VULKAN_MESH>           m_meshList;
-    std::vector<MESH_HOLDER_COMPONENT> m_meshHolder;
-    std::vector<VULKAN_TEXTURE>        m_textureList;
-    std::vector<MATERIAL_COMPONENT>    m_materialsList;
-    std::vector<NODE_COMPONENT>        m_nodeList;
+    std::array<VULKAN_MESH, MAX_ARRAY_SIZE>           m_meshList;
+    std::array<MESH_HOLDER_COMPONENT, MAX_ARRAY_SIZE> m_meshHolderList;
+    std::array<VULKAN_TEXTURE, MAX_ARRAY_SIZE>        m_textureList;
+    std::array<MATERIAL_COMPONENT, MAX_ARRAY_SIZE>    m_materialsList;
+    std::array<NODE_COMPONENT, MAX_ARRAY_SIZE>        m_nodeList;
+
+    uint32_t m_meshNum;
+    uint32_t m_meshHolderNum;
+    uint32_t m_textureNum;
+    uint32_t m_materialNum;
+    uint32_t m_nodeNum;
 
     std::array<VULKAN_TEXTURE, DEFAULT_LAST_TEXTURE> m_defaultTextureList;
     MATERIAL_COMPONENT m_defaultMaterial;

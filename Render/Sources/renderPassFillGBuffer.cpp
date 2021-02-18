@@ -47,15 +47,22 @@ void RENDER_PASS_FILL_GBUFFER::Render()
     pDrvInterface->SetDepthComparitionOperation(true);
     pDrvInterface->SetStencilTestState(false);
 
-
     EFFECT_DATA::CB_COMMON_DATA_STRUCT dynBufferData;
     dynBufferData.fTime = 0.f;
     dynBufferData.vViewPos = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(gameCamera)->position;
     dynBufferData.mViewProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewProjMatrix;
+    dynBufferData.mProj = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->projMatrix;
+    dynBufferData.mProjInv = glm::inverse(ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->projMatrix);
+    dynBufferData.mView = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(gameCamera)->viewMatrix;
     pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_COMMON_DATA, &dynBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_COMMON_DATA]);
+
+    EFFECT_DATA::CB_DEBUG_STRUCT debugBufferData;
+    debugBufferData.drawMode = gDebugVariables.drawMode;
+    pDrvInterface->FillConstBuffer(EFFECT_DATA::CB_DEBUG, &debugBufferData, EFFECT_DATA::CONST_BUFFERS_SIZE[EFFECT_DATA::CB_DEBUG]);
 
     for (auto rendEntity : m_entityList) {
         pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_COMMON_DATA);
+        pDrvInterface->SetConstBuffer(EFFECT_DATA::CB_DEBUG);
 
         glm::mat4x4 worldTransformMatrix(1.f);
 
@@ -76,10 +83,10 @@ void RENDER_PASS_FILL_GBUFFER::Render()
         const VULKAN_MESH* pMesh = pMeshPrimitive->pMesh;
         pDrvInterface->SetVertexFormat(pMesh->vertexFormatId);
         pDrvInterface->SetVertexBuffer(pMesh->vertexBuffer, 0);
-        pDrvInterface->SetIndexBuffer(pMesh->indexBuffer, 0);
         if (pMesh->numOfIndexes == 0) {
             pDrvInterface->Draw(pMesh->numOfVertexes);
         } else {
+            pDrvInterface->SetIndexBuffer(pMesh->indexBuffer, 0);
             pDrvInterface->DrawIndexed(pMesh->numOfIndexes);
         }
     }

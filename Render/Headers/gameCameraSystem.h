@@ -45,7 +45,7 @@ public:
 
                 float cameraMovementSpeed = 5.f;
                 if (keyInput->isButtonWasPressed.test(GLFW_KEY_CAPS_LOCK)) {
-                    cameraMovementSpeed /= 5.f;
+                    cameraMovementSpeed /= 10.f;
                 }
                 if (keyInput->isButtonWasPressed.test(GLFW_KEY_LEFT_SHIFT)) {
                     cameraMovementSpeed *= 10.f;

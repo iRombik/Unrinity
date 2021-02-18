@@ -23,9 +23,14 @@
 #include "renderPassShadeGBuffer.h"
 #include "renderPassResolve.h"
 #include "renderPassShadow.h"
+#include "renderPassSSAO.h"
+#include "renderPassBlendSSAO.h"
 
 glm::vec3 COMMON_AMBIENT = glm::vec3(0.2f);
-glm::vec2 DEPTH_BIAS_PARAMS = glm::vec2(1.25f, 1.65f);
+glm::vec2 DEPTH_BIAS_PARAMS = glm::vec2(1.7f, 1.8f);
+
+SSAO_VARIABLES  gSSAODebugVariables;
+DEBUG_VARIABLES gDebugVariables;
 
 ECS::ENTITY_TYPE gameCamera = ECS::INVALID_ENTITY_ID;
 std::vector<ECS::ENTITY_TYPE> pointLights;
@@ -53,6 +58,8 @@ bool RENDER_SYSTEM::Init()
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SHADE_GBUFFER>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_RESOLVE>()->Init();
     ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SHADOW>()->Init();
+    ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_SSAO>()->Init();
+    ECS::pEcsCoordinator->CreateSystem<RENDER_PASS_BLEND_SSAO>()->Init();
 
     return true;
 }
@@ -71,6 +78,8 @@ void RENDER_SYSTEM::Render()
     ECS::pEcsCoordinator->GetSystem <RENDER_PASS_SHADOW>()->Render();
     //ECS::pEcsCoordinator->GetSystem<TERRAIN_SYSTEM>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_FILL_GBUFFER>()->Render();
+    ECS::pEcsCoordinator->GetSystem<RENDER_PASS_SSAO>()->Render();
+    ECS::pEcsCoordinator->GetSystem<RENDER_PASS_BLEND_SSAO>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_SHADE_GBUFFER>()->Render();
     ECS::pEcsCoordinator->GetSystem<RENDER_PASS_RESOLVE>()->Render();
     ECS::pEcsCoordinator->GetSystem<GUI_SYSTEM>()->Render();

@@ -9,7 +9,7 @@ bool RENDER_TARGET_MANAGER::Init(uint32_t backBufferWidth, uint32_t backBufferHe
     bool isInited = true;
     {
         VULKAN_TEXTURE_CREATE_DATA depthBufferCreateData(VK_FORMAT_D24_UNORM_S8_UINT,
-            VkImageUsageFlagBits(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), backBufferWidth, backBufferHeight);
+            VkImageUsageFlagBits(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), backBufferWidth, backBufferHeight);
         VkResult result = pDrvInterface->CreateRenderTarget(depthBufferCreateData, m_renderTargetList[RT_DEPTH_BUFFER]);
         ASSERT(result == VK_SUCCESS);
         isInited &= result == VK_SUCCESS;
@@ -46,6 +46,20 @@ bool RENDER_TARGET_MANAGER::Init(uint32_t backBufferWidth, uint32_t backBufferHe
     {
         VULKAN_TEXTURE_CREATE_DATA gBufferWorldPosCreateData(VK_FORMAT_R16G16B16A16_SFLOAT, VkImageUsageFlagBits(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT), backBufferWidth, backBufferHeight);
         VkResult result = pDrvInterface->CreateRenderTarget(gBufferWorldPosCreateData, m_renderTargetList[RT_GBUFFER_WORLD_POS]);
+        ASSERT(result == VK_SUCCESS);
+        isInited &= result == VK_SUCCESS;
+    }
+
+    {
+        VULKAN_TEXTURE_CREATE_DATA ssaoMaskCreateData(VK_FORMAT_R8_UNORM, VkImageUsageFlagBits(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT), backBufferWidth, backBufferHeight);
+        VkResult result = pDrvInterface->CreateRenderTarget(ssaoMaskCreateData, m_renderTargetList[RT_SSAO_MASK]);
+        ASSERT(result == VK_SUCCESS);
+        isInited &= result == VK_SUCCESS;
+    }
+
+    {
+        VULKAN_TEXTURE_CREATE_DATA ssaoMaskBlendedCreateData(VK_FORMAT_R8_UNORM, VkImageUsageFlagBits(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT), backBufferWidth, backBufferHeight);
+        VkResult result = pDrvInterface->CreateRenderTarget(ssaoMaskBlendedCreateData, m_renderTargetList[RT_SSAO_MASK_BLENDED]);
         ASSERT(result == VK_SUCCESS);
         isInited &= result == VK_SUCCESS;
     }

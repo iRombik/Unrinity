@@ -22,6 +22,9 @@ cbuffer COMMON_BUFFER : register(b0)
     float3   viewPos;
     float    curTime;
     float4x4 worldViewProj;
+    float4x4 proj;
+    float4x4 projInv;
+    float4x4 view;
 };
 
 [[vk::binding(1)]]
@@ -37,24 +40,34 @@ cbuffer LIGHT_BUFFER : register (b1) {
 cbuffer MATERIAL_BUFFER : register (b2) {
 };
 
+[[vk::binding(4)]]
+cbuffer CUSTOM_BUFFER {
+    float4 cb0;
+    float4 cb1;
+    float4 cb2;
+    float4 cb3;
+};
+
 [[vk::binding(6)]]
 cbuffer UI_BUFFER 
 {
-    float2 scale;
-    float2 translate;
+    float2 uiScale;
+    float2 uiTranslate;
 } ;
 
 [[vk::binding(15)]]
 cbuffer DEBUG_BUFFER : register (b15) {
-    int visualizedDataType;
+    int debugDrawMode;
 };
 
 //common samplers
-[[vk::binding(120)]] SamplerState anisoSampler;
+[[vk::binding(120)]] SamplerState pointSampler;
 [[vk::binding(121)]] SamplerState linearSampler;
-[[vk::binding(122)]] SamplerState linearClampSampler;
+[[vk::binding(122)]] SamplerState anisoSampler;
 [[vk::binding(123)]] SamplerState pointClampSampler;
-[[vk::binding(124)]] SamplerComparisonState cmpPointClampSampler;
+[[vk::binding(124)]] SamplerState linearClampSampler;
+[[vk::binding(125)]] SamplerComparisonState cmpPointClampSampler;
+[[vk::binding(126)]] SamplerComparisonState cmpLinearClampSampler;
 
 static const float4x4 projToScreenMat = float4x4(
     0.5, 0.0, 0.0, 0.5,

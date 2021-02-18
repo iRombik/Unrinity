@@ -13,7 +13,6 @@
 
 const uint32_t NUM_FRAME_BUFFERS = 2;
 const uint32_t NUM_CONSTANT_BUFFERS = 16;
-const uint32_t NUM_SAMPLERS = 5;
 const uint32_t MAX_RENDER_TARGETS = 4;
 
 struct QUEUE_FAMILIES {
@@ -341,7 +340,7 @@ private:
     std::array<uint32_t, NUM_CONSTANT_BUFFERS>          m_constBufferLastRecordOffset;
     std::array<uint32_t, NUM_CONSTANT_BUFFERS>          m_constBufferOffsets;
     std::array<VULKAN_BUFFER, NUM_CONSTANT_BUFFERS>  m_constBuffers;
-    std::array<VkSampler, NUM_SAMPLERS>              m_samplers;
+    std::array<VkSampler, EFFECT_DATA::SAMPLER_LAST>              m_samplers;
 
     //used for intermediate stage of creating texture
     VULKAN_BUFFER m_intermediateStagingBuffer;
@@ -349,7 +348,7 @@ private:
     //todo: validate all resource descriptors at the same time
     std::vector<std::pair<uint8_t, VkDescriptorImageInfo>>              m_curPassImageDescriptors;
     std::vector<std::pair<uint8_t, VkDescriptorBufferInfo>>             m_curPassBufferDescriptors;
-    std::array<std::pair<uint8_t, VkDescriptorImageInfo>, NUM_SAMPLERS> m_samplerDescriptors;
+    std::array<std::pair<uint8_t, VkDescriptorImageInfo>, EFFECT_DATA::SAMPLER_LAST> m_samplerDescriptors;
 
     uint32_t                                       m_pushConstantBufferDirtySize;
     std::array<uint8_t, 128>                       m_pushConstantBuffer;

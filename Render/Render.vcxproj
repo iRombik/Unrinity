@@ -31,6 +31,7 @@
     <ClInclude Include="Headers\geometry.h" />
     <ClInclude Include="Headers\gui.h" />
     <ClInclude Include="Headers\materialManager.h" />
+    <ClInclude Include="Headers\randomGenerator.h" />
     <ClInclude Include="Headers\render.h" />
     <ClInclude Include="Headers\renderPassFillGBuffer.h" />
     <ClInclude Include="Headers\renderPassShadeGBuffer.h" />
@@ -45,20 +46,25 @@
     <ClInclude Include="Headers\vulkanDriver.h" />
     <ClInclude Include="Headers\vulkanResourcesDescription.h" />
     <ClInclude Include="Headers\windowSystem.h" />
+    <ClInclude Include="Headers\renderPassSSAO.h" />
+	<ClCompile Include="Headers\renderPassBlendSSAO.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Libs\imgui\imgui.cpp" />
     <ClCompile Include="..\Libs\imgui\imgui_demo.cpp" />
     <ClCompile Include="..\Libs\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\Libs\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\Libs\imgui\imgui_widgets.cpp" />
     <ClCompile Include="Sources\gameCameraSystem.cpp" />
     <ClCompile Include="Sources\geometry.cpp" />
     <ClCompile Include="Sources\gui.cpp" />
     <ClCompile Include="Sources\render.cpp" />
+    <ClCompile Include="Sources\renderPassBlendSSAO.cpp" />
     <ClCompile Include="Sources\renderPassFillGBuffer.cpp" />
     <ClCompile Include="Sources\renderPassShadeGBuffer.cpp" />
     <ClCompile Include="Sources\renderPassResolve.cpp" />
     <ClCompile Include="Sources\renderPassShadow.cpp" />
+    <ClCompile Include="Sources\renderPassSSAO.cpp" />
     <ClCompile Include="Sources\renderTargetManager.cpp" />
     <ClCompile Include="Sources\resourceSystem.cpp" />
     <ClCompile Include="Sources\shaderManager.cpp" />
@@ -109,6 +115,26 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="..\Shaders\shadowVS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\ssaoBlendPS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\ssaoBlendVS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\ssaoCommon.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\ssaoPS.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="..\Shaders\ssaoVS.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>

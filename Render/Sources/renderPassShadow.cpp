@@ -30,15 +30,15 @@ void RENDER_PASS_SHADOW::Update()
         const TRANSFORM_COMPONENT* transform = ECS::pEcsCoordinator->GetComponent<TRANSFORM_COMPONENT>(directionalLight);
         CAMERA_COMPONENT* cameraComponent = ECS::pEcsCoordinator->GetComponent<CAMERA_COMPONENT>(directionalLight);
         cameraComponent->viewMatrix = glm::lookAt(transform->position, glm::vec3(-35.f, 0.f, 0.1f), UP_VECTOR);
-        const float width = 400.f;
-        const float height = 400.f;
-        const float nearPlane = 1.f;
+        const float width = 300.f;
+        const float height = 300.f;
+        const float nearPlane = 100.f;
         const float farPlane = 3000.f;
         cameraComponent->projMatrix = glm::ortho(-width, width, -height, height, nearPlane, farPlane);
         cameraComponent->viewProjMatrix = clip * cameraComponent->projMatrix * cameraComponent->viewMatrix;
 
         DIRECTIONAL_LIGHT_COMPONENT* dirLightComponent = ECS::pEcsCoordinator->GetComponent<DIRECTIONAL_LIGHT_COMPONENT>(directionalLight);
-        dirLightComponent->direction = clip * cameraComponent->viewMatrix * glm::vec4(1.f, 0.f, 0.f, 0.f);
+        dirLightComponent->direction = glm::vec4(0.f, 0.f, 1.f, 0.f) * cameraComponent->viewMatrix;
     }
 }
 
@@ -76,10 +76,10 @@ void RENDER_PASS_SHADOW::Render()
         const VULKAN_MESH* pMesh = pMeshPrimitive->pMesh;
         pDrvInterface->SetVertexFormat(pMesh->vertexFormatId);
         pDrvInterface->SetVertexBuffer(pMesh->vertexBuffer, 0);
-        pDrvInterface->SetIndexBuffer(pMesh->indexBuffer, 0);
         if (pMesh->numOfIndexes == 0) {
             pDrvInterface->Draw(pMesh->numOfVertexes);
         } else {
+            pDrvInterface->SetIndexBuffer(pMesh->indexBuffer, 0);
             pDrvInterface->DrawIndexed(pMesh->numOfIndexes);
         }
     }

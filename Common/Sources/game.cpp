@@ -195,7 +195,7 @@ void GAME_MANAGER::LoadSponzaLevel()
     camera.fov = 120.f;
     camera.aspectRatio = 16.f / 9.f;
     camera.nearPlane = 1.f;
-    camera.farPlane = 10256.f;
+    camera.farPlane = 1024.f;
     camera.viewProjMatrix = {
         {1.f, 0.f, 0.f, 0.f},
         {0.f, 1.f, 0.f, 0.f},
@@ -252,6 +252,7 @@ void GAME_MANAGER::LoadSponzaLevel()
         ECS::pEcsCoordinator->AddComponentToEntity(directionalLight, lightCamera);
     }
 
+    pResourceSystem->LoadModel("Duck");
     pResourceSystem->LoadModel("Sponza");
     //pResourceSystem->LoadModel("MetalRoughSpheres");
     //pResourceSystem->LoadModel("Suzanne");

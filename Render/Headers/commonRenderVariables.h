@@ -10,3 +10,17 @@ extern glm::vec2 DEPTH_BIAS_PARAMS;
 extern ECS::ENTITY_TYPE gameCamera;
 extern std::vector<ECS::ENTITY_TYPE> pointLights;
 extern ECS::ENTITY_TYPE directionalLight;
+
+//todo: make it right
+struct SSAO_VARIABLES {
+    bool  turnOffSSAO = false;
+    float radius = 8.f;
+    float bias = 0.1f;
+};
+
+struct DEBUG_VARIABLES {
+    int drawMode = 0;
+};
+
+extern SSAO_VARIABLES  gSSAODebugVariables;
+extern DEBUG_VARIABLES gDebugVariables;
