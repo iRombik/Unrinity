@@ -14,6 +14,7 @@
 + [1.2. Using separated headers](#section1_2)
 + [1.3. Using extension headers](#section1_3)
 + [1.4. Dependencies](#section1_4)
++ [1.5. Finding GLM with CMake](#section1_5)
 + [2. Preprocessor configurations](#section2)
 + [2.1. GLM\_FORCE\_MESSAGES: Platform auto detection and default configuration](#section2_1)
 + [2.2. GLM\_FORCE\_PLATFORM\_UNKNOWN: Force GLM to no detect the build platform](#section2_2)
@@ -25,7 +26,7 @@
 + [2.8. GLM\_FORCE\_INLINE: Force inline](#section2_8)
 + [2.9. GLM\_FORCE\_ALIGNED\_GENTYPES: Force GLM to enable aligned types](#section2_9)
 + [2.10. GLM\_FORCE\_DEFAULT\_ALIGNED\_GENTYPES: Force GLM to use aligned types by default](#section2_10)
-+ [2.11. GLM\_FORCE\_SIMD\_**: Using SIMD optimizations](#section2_11)
++ [2.11. GLM\_FORCE\_INTRINSICS: Using SIMD optimizations](#section2_11)
 + [2.12. GLM\_FORCE\_PRECISION\_**: Default precision](#section2_12)
 + [2.13. GLM\_FORCE\_SINGLE\_ONLY: Removed explicit 64-bits floating point types](#section2_13)
 + [2.14. GLM\_FORCE\_SWIZZLE: Enable swizzle operators](#section2_14)
@@ -35,6 +36,7 @@
 + [2.18. GLM\_FORCE\_SIZE\_T\_LENGTH: Vector and matrix static size type](#section2_18)
 + [2.19. GLM\_FORCE\_UNRESTRICTED\_GENTYPE: Removing genType restriction](#section2_19)
 + [2.20. GLM\_FORCE\_SILENT\_WARNINGS: Silent C++ warnings from language extensions](#section2_20)
++ [2.21. GLM\_FORCE\_QUAT\_DATA\_WXYZ: Force GLM to store quat data as w,x,y,z instead of x,y,z,w](#section2_21)
 + [3. Stable extensions](#section3)
 + [3.1. Scalar types](#section3_1)
 + [3.2. Scalar functions](#section3_2)
@@ -70,7 +72,7 @@
 + [4.20. GLM_GTC_vec1](#section4_20)
 + [5. OpenGL interoperability](#section5)
 + [5.1. GLM Replacements for deprecated OpenGL functions](#section5_1)
-+ [5.2. GLM Replacements for GPU functions](#section5_2)
++ [5.2. GLM Replacements for GLU functions](#section5_2)
 + [6. Known issues](#section6)
 + [6.1. Not function](#section6_1)
 + [6.2. Precision qualifiers support](#section6_2)
@@ -215,7 +217,7 @@ GLM relies on C++ templates heavily, and may significantly increase compilation 
 #include <glm/mat4x4.hpp>             // mat4, dmat4
 #include <glm/common.hpp>             // all the GLSL common functions: abs, min, mix, isnan, fma, etc.
 #include <glm/exponential.hpp>        // all the GLSL exponential functions: pow, log, exp2, sqrt, etc.
-#include <glm/geometry.hpp>           // all the GLSL geometry functions: dot, cross, reflect, etc.
+#include <glm/geometric.hpp>          // all the GLSL geometry functions: dot, cross, reflect, etc.
 #include <glm/integer.hpp>            // all the GLSL integer functions: findMSB, bitfieldExtract, etc.
 #include <glm/matrix.hpp>             // all the GLSL matrix functions: transpose, inverse, etc.
 #include <glm/packing.hpp>            // all the GLSL packing functions: packUnorm4x8, unpackHalf2x16, etc.
@@ -273,6 +275,20 @@ glm::mat4 transform(glm::vec2 const& Orientation, glm::vec3 const& Translate, gl
 
 GLM does not depend on external libraries or headers such as `<GL/gl.h>`, [`<GL/glcorearb.h>`](http://www.opengl.org/registry/api/GL/glcorearb.h), `<GLES3/gl3.h>`, `<GL/glu.h>`, or `<windows.h>`.
 
+### <a name="section1_5"></a> 1.5. Finding GLM with CMake
+
+GLM provides the CMake package configuration files `glmConfig.cmake` and `glmConfig-version.cmake`.
+
+To use these configurations files, you may need to set the `glm_DIR` variable to the directory containing the configuration files `<path to glm root>/cmake/glm/`.
+
+Use the `find_package` CMake command to load the configurations into your project. Lastly, either link your executable against the `glm::glm` target or add `${GLM_INCLUDE_DIRS}` to your target's include directories:
+
+```cmake
+set(glm_DIR <path to glm root>/cmake/glm) # if necessary
+find_package(glm REQUIRED)
+target_link_libraries(<your executable> glm::glm)
+```
+
 ---
 <div style="page-break-after: always;"> </div>
 
@@ -319,7 +335,7 @@ The following subsections describe each configurations and defines.
 
 ### <a name="section2_4"></a> 2.4. GLM\_FORCE\_ARCH\_UNKNOWN: Force GLM to no detect the build architecture
 
-`GLM_FORCE_ARCH_UNKNOWN` prevents GLM from detecting the build target architechture.
+`GLM_FORCE_ARCH_UNKNOWN` prevents GLM from detecting the build target architecture.
 
 ### <a name="section2_5"></a> 2.5. GLM\_FORCE\_CXX\_UNKNOWN: Force GLM to no detect the C++ standard
 
@@ -456,10 +472,10 @@ void foo()
 
 *Note: GLM SIMD optimizations require the use of aligned types*
 
-### <a name="section2_11"></a> 2.11. GLM\_FORCE\_SIMD\_**: Using SIMD optimizations
+### <a name="section2_11"></a> 2.11. GLM\_FORCE\_INTRINSICS: Using SIMD optimizations
 
 GLM provides some SIMD optimizations based on [compiler intrinsics](https://msdn.microsoft.com/en-us/library/26td21ds.aspx).
-These optimizations will be automatically thanks to compiler arguments.
+These optimizations will be automatically thanks to compiler arguments when `GLM_FORCE_INTRINSICS` is defined before including GLM files.
 For example, if a program is compiled with Visual Studio using `/arch:AVX`, GLM will detect this argument and generate code using AVX instructions automatically when available.
 
 It’s possible to avoid the instruction set detection by forcing the use of a specific instruction set with one of the fallowing define:
@@ -640,7 +656,7 @@ void foo()
 ### <a name="section2_15"></a> 2.15. GLM\_FORCE\_XYZW\_ONLY: Only exposes x, y, z and w components
 
 Following GLSL specifications, GLM supports three sets of components to access vector types member: x, y, z, w; r, g, b, a; and s, t, p, q.
-Also, this is making vector component very expressive in the code, it may make debugging vector types a little cubersom as the debuggers will typically display three time the values for each compoenents due to the existance of the three sets.
+Also, this is making vector component very expressive in the code, it may make debugging vector types a little cubersom as the debuggers will typically display three time the values for each compoenents due to the existence of the three sets.
 
 To simplify vector types, GLM allows exposing only x, y, z and w components thanks to `GLM_FORCE_XYZW_ONLY` define.
 
@@ -715,6 +731,11 @@ int average(int const A, int const B)
 
 When using /W4 on Visual C++ or -Wpedantic on GCC, for example, the compilers will generate warnings for using C++ language extensions (/Za with Visual C++) such as anonymous struct.
 GLM relies on anonymous structs for swizzle operators and aligned vector types. To silent those warnings define `GLM_FORCE_SILENT_WARNINGS` before including GLM headers.
+
+
+### <a name="section2_21"></a> 2.21. GLM\_FORCE\_QUAT\_DATA\_WXYZ: Force GLM to store quat data as w,x,y,z instead of x,y,z,w
+
+By default GLM store quaternion components with the x, y, z, w order. `GLM_FORCE_QUAT_DATA_WXYZ` allows switching the quaternion data storage to the w, x, y, z order.
 
 ---
 <div style="page-break-after: always;"> </div>
@@ -2330,7 +2351,7 @@ Cinder is production-proven, powerful enough to be the primary tool for professi
 
 ![](/doc/manual/references-cinder.png)
 
-[***opencloth***](http://code.google.com/p/opencloth/)
+[***opencloth***](https://github.com/mmmovania/opencloth/)
 
 A collection of source codes implementing cloth simulation algorithms in OpenGL.
 
