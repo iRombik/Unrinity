@@ -27,7 +27,7 @@
 #include "renderPassBlendSSAO.h"
 
 glm::vec3 COMMON_AMBIENT = glm::vec3(0.2f);
-glm::vec2 DEPTH_BIAS_PARAMS = glm::vec2(1.7f, 1.8f);
+glm::vec2 DEPTH_BIAS_PARAMS = glm::vec2(2.f, 3.5f);
 
 SSAO_VARIABLES  gSSAODebugVariables;
 DEBUG_VARIABLES gDebugVariables;

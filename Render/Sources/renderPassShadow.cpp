@@ -14,7 +14,7 @@
 void RENDER_PASS_SHADOW::Init()
 {
     ECS::pEcsCoordinator->SubscrubeSystemToComponentType<RENDERED_COMPONENT>(this);
-    //ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_COMPONENT>(this);
+    ECS::pEcsCoordinator->SubscrubeSystemToComponentType<MESH_PRIMITIVE>(this);
 }
 
 void RENDER_PASS_SHADOW::Update()
